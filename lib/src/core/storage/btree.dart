@@ -152,9 +152,83 @@ class BTree {
     return result;
   }
   
+  /// Scans the tree for all key-value pairs in a range
+  Future<void> scan({
+    List<int>? startKey,
+    List<int>? endKey,
+    required bool Function(List<int> key, Uint8List value) callback,
+  }) async {
+    if (_root == null) return;
+    
+    // Find starting leaf node
+    BTreeNode currentNode;
+    int startIndex = 0;
+    
+    if (startKey != null) {
+      currentNode = await _findLeafNode(_root!, startKey);
+      startIndex = currentNode.findKeyIndex(startKey);
+    } else {
+      // Find leftmost leaf
+      currentNode = _firstLeaf ?? _root!;
+      while (!currentNode.isLeaf && currentNode.values.isNotEmpty) {
+        currentNode = currentNode.values[0] as BTreeNode;
+      }
+    }
+    
+    // Scan through leaf nodes
+    bool continueScanning = true;
+    
+    while (continueScanning && currentNode.keys.isNotEmpty) {
+      // Process keys in current node
+      for (int i = startIndex; i < currentNode.keys.length && continueScanning; i++) {
+        final key = currentNode.keys[i];
+        
+        // Check if we've reached the end key
+        if (endKey != null) {
+          final comparison = _compareKeys(key, endKey);
+          if (comparison > 0) {
+            return; // We've passed the end key
+          }
+        }
+        
+        // Call the callback
+        final value = currentNode.values[i] as Uint8List;
+        continueScanning = callback(key, value);
+      }
+      
+      // Move to next leaf node
+      if (continueScanning && currentNode.next != null) {
+        currentNode = currentNode.next!;
+        startIndex = 0;
+      } else {
+        break;
+      }
+    }
+  }
+  
+  /// Clears all data from the tree
+  Future<void> clear() async {
+    _root = null;
+    _firstLeaf = null;
+    _nodeCounter = 0;
+    await _persistTree();
+  }
+  
   /// Closes the B+ Tree
   Future<void> close() async {
     await _persistTree();
+  }
+  
+  /// Compares two keys
+  int _compareKeys(List<int> a, List<int> b) {
+    final minLength = a.length < b.length ? a.length : b.length;
+    
+    for (int i = 0; i < minLength; i++) {
+      if (a[i] < b[i]) return -1;
+      if (a[i] > b[i]) return 1;
+    }
+    
+    return a.length.compareTo(b.length);
   }
   
   Future<void> _initialize() async {

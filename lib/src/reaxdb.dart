@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'core/storage/hybrid_storage_engine.dart';
 import 'core/cache/multi_level_cache.dart';
 import 'core/transactions/transaction_manager.dart' as tx_manager;
+import 'core/indexing/index_manager.dart';
+import 'core/query/query_builder.dart';
 import 'domain/entities/database_entity.dart';
 
 /// ReaxDB - High-performance NoSQL database for Flutter
@@ -16,6 +18,7 @@ class ReaxDB {
   final HybridStorageEngine _storageEngine;
   final MultiLevelCache _cache;
   final tx_manager.TransactionManager _transactionManager;
+  final IndexManager _indexManager;
   final String? _encryptionKey;
   Uint8List? _expandedKey; // Pre-computed expanded key for optimization
   
@@ -29,11 +32,13 @@ class ReaxDB {
     required HybridStorageEngine storageEngine,
     required MultiLevelCache cache,
     required tx_manager.TransactionManager transactionManager,
+    required IndexManager indexManager,
     String? encryptionKey,
   })  : _name = name,
         _storageEngine = storageEngine,
         _cache = cache,
         _transactionManager = transactionManager,
+        _indexManager = indexManager,
         _encryptionKey = encryptionKey;
 
   /// Opens a ReaxDB instance
@@ -68,11 +73,20 @@ class ReaxDB {
       storageEngine: storageEngine,
     );
     
+    final indexManager = IndexManager(
+      basePath: dbPath,
+      storageEngine: storageEngine,
+    );
+    
+    // Load existing indexes
+    await indexManager.loadIndexes();
+    
     final db = ReaxDB._(
       name: name,
       storageEngine: storageEngine,
       cache: cache,
       transactionManager: transactionManager,
+      indexManager: indexManager,
       encryptionKey: encryptionKey,
     );
     
@@ -92,6 +106,16 @@ class ReaxDB {
     
     // Async write to storage with connection pooling
     await _storageEngine.put(key.codeUnits, finalValue);
+    
+    // Update indexes if this is a collection document
+    if (key.contains(':') && value is Map<String, dynamic>) {
+      final parts = key.split(':');
+      if (parts.length >= 2) {
+        final collection = parts[0];
+        final documentId = parts.sublist(1).join(':');
+        await _indexManager.onDocumentInsert(collection, documentId, value);
+      }
+    }
     
     final event = DatabaseChangeEvent(
       type: ChangeType.put,
@@ -131,8 +155,24 @@ class ReaxDB {
   Future<void> delete(String key) async {
     _ensureOpen();
     
+    // Get the document before deletion for index updates
+    dynamic oldValue;
+    if (key.contains(':')) {
+      oldValue = await get(key);
+    }
+    
     await _storageEngine.delete(key.codeUnits);
     _cache.remove(key);
+    
+    // Update indexes if this was a collection document
+    if (key.contains(':') && oldValue is Map<String, dynamic>) {
+      final parts = key.split(':');
+      if (parts.length >= 2) {
+        final collection = parts[0];
+        final documentId = parts.sublist(1).join(':');
+        await _indexManager.onDocumentDelete(collection, documentId, oldValue);
+      }
+    }
     
     final event = DatabaseChangeEvent(
       type: ChangeType.delete,
@@ -171,10 +211,50 @@ class ReaxDB {
     await _storageEngine.compact();
   }
 
+  /// Creates a secondary index on a field
+  Future<void> createIndex(String collection, String fieldName) async {
+    _ensureOpen();
+    await _indexManager.createIndex(collection, fieldName);
+  }
+  
+  /// Drops a secondary index
+  Future<void> dropIndex(String collection, String fieldName) async {
+    _ensureOpen();
+    await _indexManager.dropIndex(collection, fieldName);
+  }
+  
+  /// Lists all indexes
+  List<String> listIndexes() {
+    _ensureOpen();
+    return _indexManager.listIndexes();
+  }
+  
+  /// Creates a query builder for a collection
+  QueryBuilder collection(String name) {
+    _ensureOpen();
+    return QueryBuilder(
+      collection: name,
+      db: this,
+      indexManager: _indexManager,
+    );
+  }
+  
+  /// Convenience method for simple queries
+  Future<List<Map<String, dynamic>>> where(
+    String collection,
+    String field,
+    dynamic value,
+  ) async {
+    return this.collection(collection)
+        .whereEquals(field, value)
+        .find();
+  }
+  
   /// Closes the database
   Future<void> close() async {
     if (!_isOpen) return;
     
+    await _indexManager.close();
     await _storageEngine.close();
     await _transactionManager.close();
     await _changeStream.close();
@@ -457,6 +537,21 @@ class ReaxDB {
     
     // Single batch write to storage (faster than individual writes)
     await _storageEngine.putBatch(batchData);
+    
+    // Update indexes for collection documents
+    for (final entry in entries.entries) {
+      final key = entry.key;
+      final value = entry.value;
+      
+      if (key.contains(':') && value is Map<String, dynamic>) {
+        final parts = key.split(':');
+        if (parts.length >= 2) {
+          final collection = parts[0];
+          final documentId = parts.sublist(1).join(':');
+          await _indexManager.onDocumentInsert(collection, documentId, value);
+        }
+      }
+    }
     
     // Notify all streams
     for (final event in events) {

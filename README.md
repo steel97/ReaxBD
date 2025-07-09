@@ -2,11 +2,15 @@
 
 The fastest NoSQL database for Flutter. Store millions of records with 21,000+ writes per second, instant reads from cache, and built-in encryption. Perfect for offline-first apps, real-time sync, and large datasets. Works on all platforms with zero native dependencies.
 
-## 🆕 What's New in v1.0.1
+## 🆕 What's New in v1.1.0
+- **Secondary Indexes** - Query any field with lightning speed
+- **Query Builder** - Powerful API for complex queries  
+- **Range Queries** - Find documents between values
+- **Auto Index Updates** - Indexes stay in sync automatically
+
+### Previous v1.0.1
 - **4.4x faster writes** - Now 21,000+ operations per second
 - **40% faster batch operations** - Improved batch processing
-- **Smart write buffering** - Instant writes with background disk operations
-- **All tests passing** - 125 unit tests, 100% working
 
 ## Features
 
@@ -23,7 +27,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  reaxdb_dart: ^1.0.1
+  reaxdb_dart: ^1.1.0
 ```
 
 Then run:
@@ -76,6 +80,32 @@ print(user); // {name: John Doe, email: john@example.com, age: 30}
 
 // Delete data
 await db.delete('user:123');
+```
+
+### Secondary Indexes (NEW!)
+
+```dart
+// Create indexes for fast queries
+await db.createIndex('users', 'email');
+await db.createIndex('users', 'age');
+
+// Query by any indexed field
+final user = await db.collection('users')
+    .whereEquals('email', 'john@example.com')
+    .findOne();
+
+// Range queries
+final youngUsers = await db.collection('users')
+    .whereBetween('age', 18, 30)
+    .orderBy('age')
+    .find();
+
+// Complex queries
+final results = await db.collection('users')
+    .whereEquals('city', 'New York')
+    .whereGreaterThan('age', 21)
+    .limit(10)
+    .find();
 ```
 
 ### Batch Operations

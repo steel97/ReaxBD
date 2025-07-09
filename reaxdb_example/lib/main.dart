@@ -408,6 +408,20 @@ class _DatabaseExampleScreenState extends State<DatabaseExampleScreen> {
                                 icon: Icons.warning,
                               ),
                             ),
+                            SizedBox(height: 12),
+                            
+                            SizedBox(
+                              width: double.infinity,
+                              child: ActionButton(
+                                text: '🔍 Secondary Indexes',
+                                onPressed: () async {
+                                  final logs = await DatabaseService.runSecondaryIndexTest();
+                                  logs.forEach(_addLog);
+                                },
+                                color: Colors.indigo[700]!,
+                                icon: Icons.search,
+                              ),
+                            ),
                           ],
                         ),
                       ),
