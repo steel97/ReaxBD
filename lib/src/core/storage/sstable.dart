@@ -199,26 +199,55 @@ class SSTable {
     if (!await file.exists()) return;
     
     final fileSize = await file.length();
+    if (fileSize < 4) {
+      // File is too small to be valid
+      return;
+    }
+    
     final randomAccessFile = await file.open();
     
     try {
       // Read index length from end of file
       await randomAccessFile.setPosition(fileSize - 4);
       final indexLengthBytes = await randomAccessFile.read(4);
+      if (indexLengthBytes.length != 4) {
+        // Corrupted file
+        return;
+      }
+      
       final indexLength = ByteData.sublistView(Uint8List.fromList(indexLengthBytes))
           .getUint32(0, Endian.little);
+      
+      // Validate index length
+      if (indexLength <= 0 || indexLength > fileSize - 4) {
+        // Invalid index length
+        return;
+      }
       
       // Read index
       await randomAccessFile.setPosition(fileSize - 4 - indexLength);
       final indexBytes = await randomAccessFile.read(indexLength);
-      final indexJson = utf8.decode(indexBytes);
-      final indexData = jsonDecode(indexJson) as Map<String, dynamic>;
-      
-      // Populate index
-      for (final entry in indexData.entries) {
-        _index[entry.key] = entry.value as int;
+      if (indexBytes.length != indexLength) {
+        // Could not read full index
+        return;
       }
       
+      try {
+        final indexJson = utf8.decode(indexBytes);
+        final indexData = jsonDecode(indexJson) as Map<String, dynamic>;
+        
+        // Populate index
+        for (final entry in indexData.entries) {
+          _index[entry.key] = entry.value as int;
+        }
+      } catch (e) {
+        // Invalid JSON or UTF-8 - corrupted index
+        return;
+      }
+      
+    } catch (e) {
+      // Any other error - treat as corrupted file
+      return;
     } finally {
       await randomAccessFile.close();
     }

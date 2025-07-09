@@ -27,8 +27,15 @@ class HybridStorageEngine {
   // Batch processing for performance
   final Queue<_BatchOperation> _batchQueue = Queue();
   Timer? _batchTimer;
-  final int _batchSize = 50;
-  final Duration _batchInterval = Duration(milliseconds: 5);
+  final int _batchSize = 100;
+  final Duration _batchInterval = Duration(milliseconds: 2);
+  
+  // Write buffer for improved throughput
+  final List<_WriteBufferEntry> _writeBuffer = [];
+  Timer? _flushTimer;
+  final int _writeBufferSize = 256;
+  final Duration _flushInterval = Duration(milliseconds: 10);
+  bool _isFlushingBuffer = false;
   
   bool _isOpen = false;
 
@@ -76,26 +83,76 @@ class HybridStorageEngine {
     return engine;
   }
 
-  /// Puts a key-value pair with connection pooling
+  /// Puts a key-value pair with optimized async processing
   Future<void> put(List<int> key, Uint8List value) async {
-    return _queueOperation(() => _putInternal(key, value));
+    _ensureOpen();
+    
+    // Fast path: write directly to memtable if not full
+    if (!_memtable.isFull) {
+      // Add to write buffer for async WAL write
+      final entry = _WriteBufferEntry(key: key, value: value);
+      _writeBuffer.add(entry);
+      
+      // Write to memtable immediately
+      _memtable.put(key, value);
+      
+      // Optionally write to B+ tree
+      if (_shouldUseBTree(key)) {
+        _btree.put(key, value);
+      }
+      
+      // Start async WAL write if needed
+      _flushTimer ??= Timer(Duration(microseconds: 100), () => _flushWriteBuffer());
+      
+      // Flush if buffer is getting large
+      if (_writeBuffer.length >= _writeBufferSize) {
+        _flushWriteBuffer(); // Don't await - async
+      }
+      
+      return; // Return immediately
+    }
+    
+    // Slow path: need to rotate memtable
+    await _rotateMemtable();
+    await put(key, value); // Retry
   }
   
-  /// Batch put operation for better performance
+  /// Batch put operation with optimized WAL writes
   Future<void> putBatch(Map<List<int>, Uint8List> entries) async {
-    final futures = <Future>[];
+    _ensureOpen();
+    
+    // Group WAL writes for better performance
+    final walWrites = <Future>[];
     for (final entry in entries.entries) {
-      futures.add(_addToBatch(_BatchOperation.put(entry.key, entry.value)));
+      walWrites.add(_wal.append(entry.key, entry.value));
     }
-    await Future.wait(futures);
+    
+    // Write to WAL in parallel
+    await Future.wait(walWrites, eagerError: false);
+    
+    // Check if memtable needs rotation
+    var totalSize = 0;
+    for (final value in entries.values) {
+      totalSize += value.length;
+    }
+    
+    if (_memtable.currentSize + totalSize > _memtable.maxSize) {
+      await _rotateMemtable();
+    }
+    
+    // Write all entries to memtable at once
+    for (final entry in entries.entries) {
+      _memtable.put(entry.key, entry.value);
+      
+      // Optionally write to B+ tree
+      if (_shouldUseBTree(entry.key)) {
+        _btree.put(entry.key, entry.value);
+      }
+    }
   }
   
   Future<void> _putInternal(List<int> key, Uint8List value) async {
-    _ensureOpen();
-
-    // Write to WAL first for durability
-    await _wal.append(key, value);
-
+    // Write to WAL (already batched in write buffer)
     // Check if memtable is full
     if (_memtable.isFull) {
       await _rotateMemtable();
@@ -106,7 +163,7 @@ class HybridStorageEngine {
 
     // Optionally write to B+ tree for fast reads
     if (_shouldUseBTree(key)) {
-      await _btree.put(key, value);
+      _btree.put(key, value);
     }
   }
 
@@ -168,6 +225,13 @@ class HybridStorageEngine {
   Future<void> compact() async {
     _ensureOpen();
 
+    // Flush any pending writes first
+    if (_writeBuffer.isNotEmpty) {
+      await _flushWriteBuffer();
+      // Wait a bit for async operations to complete
+      await Future.delayed(Duration(milliseconds: 10));
+    }
+
     // Flush all immutable memtables
     for (final memtable in _immutableMemtables) {
       await _lsmTree.flush(memtable);
@@ -214,14 +278,22 @@ class HybridStorageEngine {
   Future<void> close() async {
     if (!_isOpen) return;
 
-    // Stop batch processing
+    // Stop timers
     _batchTimer?.cancel();
+    _flushTimer?.cancel();
+    
+    // Flush write buffer
+    if (_writeBuffer.isNotEmpty) {
+      await _flushWriteBuffer();
+    }
+    
+    // Process remaining batches
     if (_batchQueue.isNotEmpty) {
       await _processBatch();
     }
 
     // Wait for all operations to complete
-    while (_activeOperations > 0) {
+    while (_activeOperations > 0 || _isFlushingBuffer) {
       await Future.delayed(Duration(milliseconds: 10));
     }
 
@@ -353,6 +425,32 @@ class HybridStorageEngine {
     final keyString = String.fromCharCodes(key);
     return keyString.contains(':') || keyString.length < 20;
   }
+  
+  /// Flushes write buffer to WAL asynchronously
+  Future<void> _flushWriteBuffer() async {
+    if (_writeBuffer.isEmpty || _isFlushingBuffer) return;
+    
+    _isFlushingBuffer = true;
+    _flushTimer?.cancel();
+    _flushTimer = null;
+    
+    final entriesToFlush = List<_WriteBufferEntry>.from(_writeBuffer);
+    _writeBuffer.clear();
+    
+    try {
+      // Write to WAL asynchronously
+      for (final entry in entriesToFlush) {
+        _wal.append(entry.key, entry.value); // Don't await
+      }
+    } finally {
+      _isFlushingBuffer = false;
+      
+      // Schedule next flush if needed
+      if (_writeBuffer.isNotEmpty) {
+        _flushTimer = Timer(Duration(microseconds: 100), () => _flushWriteBuffer());
+      }
+    }
+  }
 }
 
 /// Batch operation types
@@ -367,4 +465,12 @@ class _BatchOperation {
   
   _BatchOperation.put(this.key, this.value) : type = _BatchOpType.put;
   _BatchOperation.delete(this.key) : type = _BatchOpType.delete, value = null;
+}
+
+/// Write buffer entry for async WAL writes
+class _WriteBufferEntry {
+  final List<int> key;
+  final Uint8List value;
+  
+  _WriteBufferEntry({required this.key, required this.value});
 }

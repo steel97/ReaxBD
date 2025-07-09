@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:async';
 import 'package:path/path.dart' as path;
 
 /// Write-Ahead Log entry types
@@ -134,6 +135,11 @@ class WriteAheadLog {
   int _currentSequenceNumber = 0;
   int _currentFileSize = 0;
   
+  // Batch write buffer for improved throughput
+  final List<WALEntry> _pendingWrites = [];
+  Timer? _flushTimer;
+  bool _isFlushing = false;
+  
   static const int _defaultMaxFileSize = 64 * 1024 * 1024; // 64MB
   
   WriteAheadLog._({
@@ -186,6 +192,11 @@ class WriteAheadLog {
   
   /// Appends a checkpoint marker to the log
   Future<void> checkpoint() async {
+    // Flush any pending writes first
+    if (_pendingWrites.isNotEmpty) {
+      await _flushPendingWrites();
+    }
+    
     final entry = WALEntry(
       type: WALEntryType.checkpoint,
       key: [],
@@ -227,6 +238,13 @@ class WriteAheadLog {
   
   /// Closes the Write-Ahead Log
   Future<void> close() async {
+    _flushTimer?.cancel();
+    
+    // Flush any pending writes
+    if (_pendingWrites.isNotEmpty) {
+      await _flushPendingWrites();
+    }
+    
     await _currentSink?.close();
     _currentSink = null;
   }
@@ -273,19 +291,59 @@ class WriteAheadLog {
   }
   
   Future<void> _writeEntry(WALEntry entry) async {
-    final entryBytes = entry.toBytes();
-    final lengthBytes = WALEntry._int32ToBytes(entryBytes.length);
+    _pendingWrites.add(entry);
     
-    // Write entry length first, then entry data
-    _currentSink!.add(lengthBytes);
-    _currentSink!.add(entryBytes);
-    await _currentSink!.flush();
+    // Start flush timer if not already running
+    _flushTimer ??= Timer(Duration(milliseconds: 1), () => _flushPendingWrites());
     
-    _currentFileSize += lengthBytes.length + entryBytes.length;
+    // Flush immediately if we have many pending writes
+    if (_pendingWrites.length >= 1000) {
+      _flushPendingWrites(); // Don't await - async flush
+    }
+  }
+  
+  Future<void> _flushPendingWrites() async {
+    if (_pendingWrites.isEmpty || _isFlushing) return;
     
-    // Rotate log file if it gets too large
-    if (_currentFileSize >= _maxFileSize) {
-      await _rotateLogFile();
+    _isFlushing = true;
+    _flushTimer?.cancel();
+    _flushTimer = null;
+    
+    final entriesToFlush = List<WALEntry>.from(_pendingWrites);
+    _pendingWrites.clear();
+    
+    try {
+      // Write all entries in a single batch
+      final buffer = BytesBuilder();
+      
+      for (final entry in entriesToFlush) {
+        final entryBytes = entry.toBytes();
+        final lengthBytes = WALEntry._int32ToBytes(entryBytes.length);
+        
+        buffer.add(lengthBytes);
+        buffer.add(entryBytes);
+        
+        _currentFileSize += lengthBytes.length + entryBytes.length;
+      }
+      
+      // Write entire buffer at once
+      final allBytes = buffer.toBytes();
+      if (_currentSink != null) {
+        _currentSink!.add(allBytes);
+        await _currentSink!.flush();
+      }
+      
+      // Check if rotation needed
+      if (_currentFileSize >= _maxFileSize) {
+        await _rotateLogFile();
+      }
+    } finally {
+      _isFlushing = false;
+      
+      // Start new timer if more writes came in
+      if (_pendingWrites.isNotEmpty) {
+        _flushTimer = Timer(Duration(milliseconds: 1), () => _flushPendingWrites());
+      }
     }
   }
   

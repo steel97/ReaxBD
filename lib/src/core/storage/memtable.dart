@@ -99,6 +99,12 @@ class MemTable {
 
   /// Gets current memory usage in bytes
   int get memoryUsage => _currentSize;
+  
+  /// Gets current size in bytes (for compatibility)
+  int get currentSize => _currentSize;
+  
+  /// Gets maximum size in bytes
+  int get maxSize => _maxSize;
 
   /// Gets keys in sorted order
   Iterable<List<int>> get keys => _data.keys.map(_stringToKey);

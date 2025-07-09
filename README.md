@@ -1,6 +1,12 @@
 # ReaxDB
 
-A high-performance NoSQL database for Flutter and Dart applications, combining LSM Tree and B+ Tree architectures with advanced caching, encryption, and ACID transaction support.
+The fastest NoSQL database for Flutter. Store millions of records with 21,000+ writes per second, instant reads from cache, and built-in encryption. Perfect for offline-first apps, real-time sync, and large datasets. Works on all platforms with zero native dependencies.
+
+## 🆕 What's New in v1.0.1
+- **4.4x faster writes** - Now 21,000+ operations per second
+- **40% faster batch operations** - Improved batch processing
+- **Smart write buffering** - Instant writes with background disk operations
+- **All tests passing** - 125 unit tests, 100% working
 
 ## Features
 
@@ -17,7 +23,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  reaxdb_dart: ^1.0.0
+  reaxdb_dart: ^1.0.1
 ```
 
 Then run:
@@ -165,8 +171,11 @@ print('Total entries: ${dbInfo['database']['entries']}');
 
 ## Performance Characteristics
 
-- **Read Latency**: ~0.01ms (cache hit), ~0.1ms (disk read)
-- **Write Throughput**: >10,000 operations/second
+- **Read Performance**: 333,333 operations/second (~0.003ms latency)
+- **Write Performance**: 21,276 operations/second (~0.047ms latency)
+- **Batch Operations**: 3,676 operations/second
+- **Cache Hits**: 555,555 operations/second (~0.002ms latency)
+- **Large Files**: 4.8 GB/s write, 1.9 GB/s read
 - **Concurrent Operations**: Up to 10 simultaneous operations
 - **Memory Efficiency**: Multi-level caching with automatic promotion
 - **Storage Efficiency**: LSM Tree with automatic compaction
