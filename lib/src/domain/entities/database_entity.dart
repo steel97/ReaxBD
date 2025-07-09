@@ -1,5 +1,3 @@
-/// Database domain entities
-
 /// Represents a database entry
 class DatabaseEntry {
   final String key;

@@ -194,14 +194,8 @@ void main() {
         await db.put('compact_$i', 'value_$i');
       }
       
-      // Get initial stats
-      final statsBeforeCompact = await db.getStatistics();
-      
       // Force compaction
       await db.compact();
-      
-      // Get stats after compaction
-      final statsAfterCompact = await db.getStatistics();
       
       // All data should still be accessible
       for (int i = 0; i < 200; i++) {
@@ -274,6 +268,9 @@ void main() {
         final value = await db.get<String>('large_$i');
         expect(value, equals(largeValue));
       }
+      
+      // Force flush to disk
+      await db.compact();
       
       // Get database info
       final info = await db.getDatabaseInfo();

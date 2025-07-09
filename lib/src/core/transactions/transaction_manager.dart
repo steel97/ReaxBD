@@ -51,7 +51,7 @@ class LockManager {
     
     // Wait for lock to become available
     final completer = Completer<void>();
-    _waitingQueue['${key}_${transactionId}'] = completer;
+    _waitingQueue['${key}_$transactionId'] = completer;
     
     try {
       await completer.future.timeout(Duration(seconds: 30));
@@ -61,7 +61,7 @@ class LockManager {
       }
       return false;
     } catch (e) {
-      _waitingQueue.remove('${key}_${transactionId}');
+      _waitingQueue.remove('${key}_$transactionId');
       return false; // Timeout or error
     }
   }

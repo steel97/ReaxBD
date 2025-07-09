@@ -5,10 +5,10 @@ class ConsoleWidget extends StatelessWidget {
   final VoidCallback onClear;
 
   const ConsoleWidget({
-    Key? key,
+    super.key,
     required this.logs,
     required this.onClear,
-  }) : super(key: key);
+  });
 
   Color _getLogColor(String log) {
     if (log.contains('❌') || log.contains('Error') || log.contains('FAILED')) {

@@ -1,6 +1,4 @@
-/// Entidades relacionadas con transacciones
-
-/// Entidad que representa una transacción
+/// Entyties
 class TransactionEntity {
   final String id;
   final DateTime startTime;

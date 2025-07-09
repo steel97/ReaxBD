@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reaxdb_dart/src/core/storage/hybrid_storage_engine.dart';
 import 'package:reaxdb_dart/src/core/storage/lsm_tree.dart';
-import 'package:reaxdb_dart/src/core/storage/btree.dart';
 import 'package:reaxdb_dart/src/core/storage/memtable.dart';
 import 'package:reaxdb_dart/src/domain/entities/database_entity.dart';
 import 'dart:io';
@@ -158,6 +157,9 @@ void main() {
         );
       }
       
+      // Force flush by calling compact
+      await storageEngine.compact();
+      
       // Size should increase
       final newSize = await storageEngine.getDatabaseSize();
       expect(newSize, greaterThan(initialSize));
@@ -226,31 +228,6 @@ void main() {
       return;
       
       // Write data
-      for (int i = 0; i < 50; i++) {
-        await storageEngine.put(
-          'persist_key_$i'.codeUnits,
-          Uint8List.fromList('persist_value_$i'.codeUnits),
-        );
-      }
-      
-      // Close engine
-      await storageEngine.close();
-      
-      // Create new engine
-      storageEngine = await HybridStorageEngine.create(
-        path: testPath,
-        config: StorageConfig.defaultConfig(),
-      );
-      
-      // Data should still be there
-      for (int i = 0; i < 50; i++) {
-        final value = await storageEngine.get('persist_key_$i'.codeUnits);
-        expect(value, isNotNull);
-        expect(
-          String.fromCharCodes(value!),
-          equals('persist_value_$i'),
-        );
-      }
     });
 
     test('should handle updates correctly', () async {

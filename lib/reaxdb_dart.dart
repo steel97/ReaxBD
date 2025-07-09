@@ -1,5 +1,5 @@
 /// ReaxDB - High-performance NoSQL database for Flutter
-library reaxdb_dart;
+library;
 
 // Domain exports
 export 'src/domain/entities/database_entity.dart';

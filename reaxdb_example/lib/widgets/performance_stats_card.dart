@@ -6,11 +6,11 @@ class PerformanceStatsCard extends StatelessWidget {
   final List<int> latencies;
 
   const PerformanceStatsCard({
-    Key? key,
+    super.key,
     required this.totalOperations,
     required this.successfulOperations,
     required this.latencies,
-  }) : super(key: key);
+  });
 
   Widget _buildStatItem(String label, String value, IconData icon, Color color) {
     return Column(

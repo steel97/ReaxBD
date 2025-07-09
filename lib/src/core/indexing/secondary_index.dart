@@ -7,15 +7,13 @@ class SecondaryIndex {
   final String collection;
   final String fieldName;
   final BTree _indexTree;
-  final HybridStorageEngine _storageEngine;
   
   SecondaryIndex({
     required this.collection,
     required this.fieldName,
     required BTree indexTree,
     required HybridStorageEngine storageEngine,
-  }) : _indexTree = indexTree,
-       _storageEngine = storageEngine;
+  }) : _indexTree = indexTree;
   
   /// Creates a new secondary index
   static Future<SecondaryIndex> create({
@@ -38,7 +36,6 @@ class SecondaryIndex {
   /// Adds an entry to the index
   Future<void> addEntry(dynamic fieldValue, String documentId) async {
     final indexKey = _createIndexKey(fieldValue);
-    final docIdBytes = Uint8List.fromList(documentId.codeUnits);
     
     // Get existing entries for this field value
     final existingBytes = await _indexTree.get(indexKey);

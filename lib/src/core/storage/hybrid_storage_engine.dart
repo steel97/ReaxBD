@@ -24,17 +24,13 @@ class HybridStorageEngine {
   final int _maxConcurrentOps = 10;
   int _activeOperations = 0;
   
-  // Batch processing for performance
-  final Queue<_BatchOperation> _batchQueue = Queue();
+  // Batch timer for cleanup
   Timer? _batchTimer;
-  final int _batchSize = 100;
-  final Duration _batchInterval = Duration(milliseconds: 2);
   
   // Write buffer for improved throughput
   final List<_WriteBufferEntry> _writeBuffer = [];
   Timer? _flushTimer;
   final int _writeBufferSize = 256;
-  final Duration _flushInterval = Duration(milliseconds: 10);
   bool _isFlushingBuffer = false;
   
   bool _isOpen = false;
@@ -151,21 +147,6 @@ class HybridStorageEngine {
     }
   }
   
-  Future<void> _putInternal(List<int> key, Uint8List value) async {
-    // Write to WAL (already batched in write buffer)
-    // Check if memtable is full
-    if (_memtable.isFull) {
-      await _rotateMemtable();
-    }
-
-    // Write to memtable
-    _memtable.put(key, value);
-
-    // Optionally write to B+ tree for fast reads
-    if (_shouldUseBTree(key)) {
-      _btree.put(key, value);
-    }
-  }
 
   /// Gets a value by key with connection pooling
   Future<Uint8List?> get(List<int> key) async {
@@ -287,10 +268,6 @@ class HybridStorageEngine {
       await _flushWriteBuffer();
     }
     
-    // Process remaining batches
-    if (_batchQueue.isNotEmpty) {
-      await _processBatch();
-    }
 
     // Wait for all operations to complete
     while (_activeOperations > 0 || _isFlushingBuffer) {
@@ -375,49 +352,6 @@ class HybridStorageEngine {
     }
   }
   
-  /// Batch processing for improved throughput
-  Future<void> _addToBatch(_BatchOperation operation) async {
-    final completer = Completer<void>();
-    operation.completer = completer;
-    _batchQueue.add(operation);
-    
-    _batchTimer ??= Timer.periodic(_batchInterval, (_) => _processBatch());
-    
-    if (_batchQueue.length >= _batchSize) {
-      await _processBatch();
-    }
-    
-    return completer.future;
-  }
-  
-  Future<void> _processBatch() async {
-    if (_batchQueue.isEmpty) return;
-    
-    final batch = List<_BatchOperation>.from(_batchQueue);
-    _batchQueue.clear();
-    
-    try {
-      for (final op in batch) {
-        try {
-          switch (op.type) {
-            case _BatchOpType.put:
-              await _putInternal(op.key!, op.value!);
-              break;
-            case _BatchOpType.delete:
-              await _deleteInternal(op.key!);
-              break;
-          }
-          op.completer?.complete();
-        } catch (e) {
-          op.completer?.completeError(e);
-        }
-      }
-    } catch (e) {
-      for (final op in batch) {
-        op.completer?.completeError(e);
-      }
-    }
-  }
   
   bool _shouldUseBTree(List<int> key) {
     // Use B+ tree for frequently accessed keys or range queries
@@ -453,19 +387,6 @@ class HybridStorageEngine {
   }
 }
 
-/// Batch operation types
-enum _BatchOpType { put, delete }
-
-/// Batch operation container
-class _BatchOperation {
-  final _BatchOpType type;
-  final List<int>? key;
-  final Uint8List? value;
-  Completer<void>? completer;
-  
-  _BatchOperation.put(this.key, this.value) : type = _BatchOpType.put;
-  _BatchOperation.delete(this.key) : type = _BatchOpType.delete, value = null;
-}
 
 /// Write buffer entry for async WAL writes
 class _WriteBufferEntry {

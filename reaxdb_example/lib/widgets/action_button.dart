@@ -8,13 +8,13 @@ class ActionButton extends StatelessWidget {
   final bool isActive;
 
   const ActionButton({
-    Key? key,
+    super.key,
     required this.text,
     required this.onPressed,
     required this.color,
     required this.icon,
     this.isActive = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

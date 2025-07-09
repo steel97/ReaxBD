@@ -13,6 +13,8 @@ void main() {
 }
 
 class ReaxDBExampleApp extends StatelessWidget {
+  const ReaxDBExampleApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -47,12 +49,14 @@ class ReaxDBExampleApp extends StatelessWidget {
 }
 
 class DatabaseExampleScreen extends StatefulWidget {
+  const DatabaseExampleScreen({super.key});
+
   @override
-  _DatabaseExampleScreenState createState() => _DatabaseExampleScreenState();
+  DatabaseExampleScreenState createState() => DatabaseExampleScreenState();
 }
 
-class _DatabaseExampleScreenState extends State<DatabaseExampleScreen> {
-  List<String> _logs = [];
+class DatabaseExampleScreenState extends State<DatabaseExampleScreen> {
+  final List<String> _logs = [];
   bool _isLoading = false;
   bool _realTimeMode = false;
   int _realTimeCounter = 0;
@@ -64,7 +68,7 @@ class _DatabaseExampleScreenState extends State<DatabaseExampleScreen> {
   // Performance metrics
   int _totalOperations = 0;
   int _successfulOperations = 0;
-  List<int> _latencies = [];
+  final List<int> _latencies = [];
 
   @override
   void initState() {
@@ -258,7 +262,7 @@ class _DatabaseExampleScreenState extends State<DatabaseExampleScreen> {
         _logs.add('[${DateTime.now().toString().substring(11, 19)}] $message');
       });
     }
-    print(message);
+    debugPrint(message);
   }
 
   void _clearLogs() {

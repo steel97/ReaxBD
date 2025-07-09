@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../indexing/index_manager.dart';
 import '../indexing/secondary_index.dart';
 import '../../reaxdb.dart';
@@ -140,7 +142,7 @@ class QueryBuilder {
       } else {
         // TODO: Implement collection scanning
         // For now, return empty
-        print('Warning: Query without index not yet implemented');
+        debugPrint('Warning: Query without index not yet implemented');
         return [];
       }
     }

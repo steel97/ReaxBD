@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reaxdb_dart/reaxdb_dart.dart';
 import 'dart:io';
@@ -281,9 +282,9 @@ void main() {
           .findOne();
       stopwatch2.stop();
       final timeWithIndex = stopwatch2.elapsedMicroseconds;
-      
-      print('Query without index: ${timeWithoutIndex}μs');
-      print('Query with index: ${timeWithIndex}μs');
+
+      debugPrint('Query without index: $timeWithoutIndexμs');
+      debugPrint('Query with index: $timeWithIndexμs');
       
       // Index should be faster (though for small datasets the difference might be minimal)
       expect(timeWithIndex, lessThanOrEqualTo(timeWithoutIndex));

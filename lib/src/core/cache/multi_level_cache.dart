@@ -404,9 +404,15 @@ class MultiLevelCache {
     final l2Keys = _l2Cache._cache.keys.where(regex.hasMatch).toList();
     final l3Keys = _l3Cache._cache.keys.where(regex.hasMatch).toList();
     
-    for (final key in l1Keys) _l1Cache.remove(key);
-    for (final key in l2Keys) _l2Cache.remove(key);
-    for (final key in l3Keys) _l3Cache.remove(key);
+    for (final key in l1Keys) {
+      _l1Cache.remove(key);
+    }
+    for (final key in l2Keys) {
+      _l2Cache.remove(key);
+    }
+    for (final key in l3Keys) {
+      _l3Cache.remove(key);
+    }
   }
   
   /// Preloads commonly accessed data into cache

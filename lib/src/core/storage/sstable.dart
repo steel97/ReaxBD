@@ -26,7 +26,7 @@ class SSTable {
     required Map<List<int>, Uint8List> entries,
   }) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final fileName = 'level_${level}_${timestamp}.sst';
+    final fileName = 'level_${level}_$timestamp.sst';
     final filePath = path.join(basePath, fileName);
     
     final sstable = SSTable._(

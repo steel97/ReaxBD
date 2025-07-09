@@ -261,6 +261,9 @@ void main() {
         await db.put('info_$i', 'data_$i');
       }
       
+      // Force flush to disk
+      await db.compact();
+      
       final info = await db.getDatabaseInfo();
       
       // getDatabaseInfo returns a DatabaseInfo object
@@ -275,6 +278,9 @@ void main() {
       for (int i = 0; i < 5; i++) {
         await db.put('stat_$i', 'data_$i');
       }
+      
+      // Force flush to disk
+      await db.compact();
       
       final stats = await db.getStatistics();
       

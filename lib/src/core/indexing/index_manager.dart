@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
+
 import 'secondary_index.dart';
 import '../storage/hybrid_storage_engine.dart';
 
@@ -159,7 +161,7 @@ class IndexManager {
             
             _indexes['$collection.$fieldName'] = index;
           } catch (e) {
-            print('Failed to load index $collection.$fieldName: $e');
+            debugPrint('Failed to load index $collection.$fieldName: $e');
           }
         }
       }

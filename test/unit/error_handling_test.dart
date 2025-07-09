@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:reaxdb_dart/reaxdb_dart.dart';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:convert';
 
 void main() {
   group('Error Handling Tests', () {
@@ -191,9 +190,6 @@ void main() {
       // Put initial value
       await db.put('conflict_key', 0);
       
-      // Use batch operations to avoid StreamSink conflicts
-      const numOperations = 20;
-      
       // Read-modify-write in smaller batches
       for (int batch = 0; batch < 4; batch++) {
         final batchData = <String, dynamic>{};
@@ -291,7 +287,6 @@ void main() {
         await permissionDb.close();
         
         // Change permissions to read-only
-        final dbDir = Directory(permissionTestPath);
         if (Platform.isLinux || Platform.isMacOS) {
           await Process.run('chmod', ['-R', '444', permissionTestPath]);
         }
@@ -336,7 +331,7 @@ void main() {
     test('should handle database path errors', () async {
       // Invalid path characters
       expect(
-        () async => await ReaxDB.open('error_db', path: '/\0invalid\0path'),
+        () async => await ReaxDB.open('error_db', path: '/\\0invalid\\0path'),
         throwsA(anything),
       );
       
