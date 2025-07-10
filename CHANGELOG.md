@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.1 - Documentation Update (2025-01-09)
+
+### What's New
+- **Improved documentation** with useful badges and tags
+- **Buy Me a Coffee** support option added
+- **Fixed analyzer warnings** and code cleanup
+- **All tests passing** - Improved test stability
+
+### Technical Improvements
+- Removed unused code and variables
+- Fixed test timing issues with proper flush operations
+- Cleaned up batch processing implementation
+- Enhanced code quality and maintainability
+
 ## 1.1.0 - Secondary Indexes (2025-01-09)
 
 ### 🎉 New Features

@@ -341,21 +341,22 @@ void main() {
     });
   });
 
-  group('ReaxDB with Encryption', () {
-    test('should show encrypted database in info', () async {
+  group('ReaxDB with Legacy Encryption', () {
+    test('should show encrypted database in info with default XOR', () async {
       final testPath = 'test/encrypted_db';
       final encryptionKey = 'test_encryption_key_32_bytes_long';
       
-      // Clean uphaz crit
+      // Clean up
       final dir = Directory(testPath);
       if (await dir.exists()) {
         await dir.delete(recursive: true);
       }
       
-      // Create encrypted database
+      // Create encrypted database (defaults to XOR when key is provided)
       final encryptedDb = await ReaxDB.open(
-        'encrypted_db', 
+        'encrypted_db',
         path: testPath,
+        config: DatabaseConfig.withXorEncryption(),
         encryptionKey: encryptionKey,
       );
       
@@ -380,6 +381,10 @@ void main() {
         expect(await encryptedDb.get<String>('enc_1'), equals('value_1'));
         expect(await encryptedDb.get<String>('enc_2'), equals('value_2'));
         
+        // Test encryption info
+        final encryptionInfo = encryptedDb.getEncryptionInfo();
+        expect(encryptionInfo['enabled'], isTrue);
+        
       } finally {
         await encryptedDb.close();
         // Clean up
@@ -387,6 +392,18 @@ void main() {
           await dir.delete(recursive: true);
         }
       }
+    });
+
+    test('should handle database configuration options', () async {
+      // Test different configuration factories
+      final defaultConfig = DatabaseConfig.defaultConfig();
+      expect(defaultConfig.encryptionType, equals(EncryptionType.none));
+      
+      final xorConfig = DatabaseConfig.withXorEncryption();
+      expect(xorConfig.encryptionType, equals(EncryptionType.xor));
+      
+      final aesConfig = DatabaseConfig.withAes256Encryption();
+      expect(aesConfig.encryptionType, equals(EncryptionType.aes256));
     });
   });
 }

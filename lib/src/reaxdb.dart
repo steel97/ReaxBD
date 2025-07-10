@@ -7,20 +7,17 @@ import 'core/cache/multi_level_cache.dart';
 import 'core/transactions/transaction_manager.dart' as tx_manager;
 import 'core/indexing/index_manager.dart';
 import 'core/query/query_builder.dart';
+import 'core/encryption/encryption_type.dart';
+import 'core/encryption/encryption_engine.dart';
 import 'domain/entities/database_entity.dart';
 
-/// ReaxDB - High-performance NoSQL database for Flutter
-/// 
-/// Pure Dart implementation combining LSM Tree and B+ Tree
-/// for mobile optimization with multi-level cache and ACID transactions.
 class ReaxDB {
   final String _name;
   final HybridStorageEngine _storageEngine;
   final MultiLevelCache _cache;
   final tx_manager.TransactionManager _transactionManager;
   final IndexManager _indexManager;
-  final String? _encryptionKey;
-  Uint8List? _expandedKey; // Pre-computed expanded key for optimization
+  final EncryptionEngine? _encryptionEngine;
   
   final StreamController<DatabaseChangeEvent> _changeStream = StreamController<DatabaseChangeEvent>.broadcast();
   final Map<String, StreamController<DatabaseChangeEvent>> _patternStreams = {};
@@ -33,13 +30,13 @@ class ReaxDB {
     required MultiLevelCache cache,
     required tx_manager.TransactionManager transactionManager,
     required IndexManager indexManager,
-    String? encryptionKey,
+    EncryptionEngine? encryptionEngine,
   })  : _name = name,
         _storageEngine = storageEngine,
         _cache = cache,
         _transactionManager = transactionManager,
         _indexManager = indexManager,
-        _encryptionKey = encryptionKey;
+        _encryptionEngine = encryptionEngine;
 
   /// Opens a ReaxDB instance
   static Future<ReaxDB> open(
@@ -78,8 +75,17 @@ class ReaxDB {
       storageEngine: storageEngine,
     );
     
-    // Load existing indexes
+
     await indexManager.loadIndexes();
+    
+    // Create encryption engine if needed
+    EncryptionEngine? encryptionEngine;
+    if (config.encryptionType != EncryptionType.none) {
+      encryptionEngine = EncryptionEngine(
+        type: config.encryptionType,
+        key: encryptionKey,
+      );
+    }
     
     final db = ReaxDB._(
       name: name,
@@ -87,7 +93,7 @@ class ReaxDB {
       cache: cache,
       transactionManager: transactionManager,
       indexManager: indexManager,
-      encryptionKey: encryptionKey,
+      encryptionEngine: encryptionEngine,
     );
     
     db._isOpen = true;
@@ -99,7 +105,7 @@ class ReaxDB {
     _ensureOpen();
     
     final serializedValue = _serializeValue(value);
-    final finalValue = _encryptionKey != null ? _encrypt(serializedValue) : serializedValue;
+    final finalValue = _encryptionEngine?.encrypt(serializedValue) ?? serializedValue;
     
     // Cache first for immediate reads (0.01ms latency)
     _cache.put(key, finalValue, level: CacheLevel.l1);
@@ -135,14 +141,14 @@ class ReaxDB {
     // L1 cache hit - FASTEST PATH (0.01ms like Isar)
     final cached = _cache.get(key);
     if (cached != null) {
-      final decryptedCached = _encryptionKey != null ? _decrypt(cached) : cached;
+      final decryptedCached = _encryptionEngine?.decrypt(cached) ?? cached;
       return _deserializeValue<T>(decryptedCached);
     }
     
     final rawValue = await _storageEngine.get(key.codeUnits);
     if (rawValue == null) return null;
     
-    final decryptedValue = _encryptionKey != null ? _decrypt(rawValue) : rawValue;
+    final decryptedValue = _encryptionEngine?.decrypt(rawValue) ?? rawValue;
     final value = _deserializeValue<T>(decryptedValue);
     
     // Promote to L1 cache for next access
@@ -278,7 +284,7 @@ class ReaxDB {
       lastAccessed: DateTime.now(),
       entryCount: await _storageEngine.getEntryCount(),
       sizeBytes: await _storageEngine.getDatabaseSize(),
-      isEncrypted: _encryptionKey != null,
+      isEncrypted: _encryptionEngine != null,
     );
   }
   
@@ -294,7 +300,7 @@ class ReaxDB {
         'name': _name,
         'size': await _storageEngine.getDatabaseSize(),
         'entries': await _storageEngine.getEntryCount(),
-        'encrypted': _encryptionKey != null,
+        'encrypted': _encryptionEngine != null,
       },
       'cache': {
         'l1': {'hits': cacheStats.l1Hits, 'misses': cacheStats.l1Misses},
@@ -409,76 +415,36 @@ class ReaxDB {
     }
   }
   
-  /// Encrypts data if encryption key is set
+  /// Encrypts data using the configured encryption engine
   Uint8List encryptData(Uint8List data) {
-    final encryptionKey = _encryptionKey;
-    if (encryptionKey == null) return data;
-    
-    // Simple but fast XOR encryption
-    final key = _expandedKey ??= _expandKey(encryptionKey);
-    final encrypted = Uint8List(data.length);
-    
-    // Unroll loop for better performance
-    final len = data.length;
-    final keyLen = key.length;
-    
-    // Process 16 bytes at a time (unrolled)
-    int i = 0;
-    for (; i + 16 <= len; i += 16) {
-      encrypted[i] = data[i] ^ key[i % keyLen];
-      encrypted[i + 1] = data[i + 1] ^ key[(i + 1) % keyLen];
-      encrypted[i + 2] = data[i + 2] ^ key[(i + 2) % keyLen];
-      encrypted[i + 3] = data[i + 3] ^ key[(i + 3) % keyLen];
-      encrypted[i + 4] = data[i + 4] ^ key[(i + 4) % keyLen];
-      encrypted[i + 5] = data[i + 5] ^ key[(i + 5) % keyLen];
-      encrypted[i + 6] = data[i + 6] ^ key[(i + 6) % keyLen];
-      encrypted[i + 7] = data[i + 7] ^ key[(i + 7) % keyLen];
-      encrypted[i + 8] = data[i + 8] ^ key[(i + 8) % keyLen];
-      encrypted[i + 9] = data[i + 9] ^ key[(i + 9) % keyLen];
-      encrypted[i + 10] = data[i + 10] ^ key[(i + 10) % keyLen];
-      encrypted[i + 11] = data[i + 11] ^ key[(i + 11) % keyLen];
-      encrypted[i + 12] = data[i + 12] ^ key[(i + 12) % keyLen];
-      encrypted[i + 13] = data[i + 13] ^ key[(i + 13) % keyLen];
-      encrypted[i + 14] = data[i + 14] ^ key[(i + 14) % keyLen];
-      encrypted[i + 15] = data[i + 15] ^ key[(i + 15) % keyLen];
-    }
-    
-    // Process remaining bytes
-    for (; i < len; i++) {
-      encrypted[i] = data[i] ^ key[i % keyLen];
-    }
-    
-    return encrypted;
+    return _encryptionEngine?.encrypt(data) ?? data;
   }
   
-  /// Decrypts data if encryption key is set
+  /// Decrypts data using the configured encryption engine
   Uint8List decryptData(Uint8List data) {
-    if (_encryptionKey == null) return data;
-    // XOR decryption (same as encryption)
-    return encryptData(data);
+    return _encryptionEngine?.decrypt(data) ?? data;
   }
   
-  /// Expands encryption key for better performance
-  Uint8List _expandKey(String key) {
-    final keyBytes = Uint8List.fromList(key.codeUnits);
-    // Expand key to at least 512 bytes to avoid modulo operations
-    final expandedLength = 512;
-    final expanded = Uint8List(expandedLength);
-    
-    // Fill expanded key
-    final keyLen = keyBytes.length;
-    for (int i = 0; i < expandedLength; i++) {
-      expanded[i] = keyBytes[i % keyLen];
+  /// Gets encryption information
+  Map<String, dynamic> getEncryptionInfo() {
+    if (_encryptionEngine == null) {
+      return {
+        'enabled': false,
+        'type': 'none',
+        'display_name': 'No Encryption',
+        'security_level': 'none',
+        'performance_impact': 'none',
+        'version': '1.0',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
     }
     
-    return expanded;
+    return _encryptionEngine.getMetadata();
   }
 
   // Private methods that use the public ones
   Uint8List _serializeValue(dynamic value) => serializeValue(value);
   T? _deserializeValue<T>(Uint8List data) => deserializeValue<T>(data);
-  Uint8List _encrypt(Uint8List data) => encryptData(data);
-  Uint8List _decrypt(Uint8List data) => decryptData(data);
 
   void _notifyPatternStreams(String key, DatabaseChangeEvent event) {
     for (final pattern in _patternStreams.keys) {
@@ -504,35 +470,18 @@ class ReaxDB {
     final events = <DatabaseChangeEvent>[];
     
     // Prepare all data first - batch encryption for better performance
-    if (_encryptionKey != null) {
-      // Batch process for encryption
-      for (final entry in entries.entries) {
-        final serialized = _serializeValue(entry.value);
-        final encrypted = _encrypt(serialized);
-        batchData[entry.key.codeUnits] = encrypted;
-        _cache.put(entry.key, encrypted, level: CacheLevel.l1);
-        
-        events.add(DatabaseChangeEvent(
-          type: ChangeType.put,
-          key: entry.key,
-          value: entry.value,
-          timestamp: DateTime.now(),
-        ));
-      }
-    } else {
-      // No encryption - faster path
-      for (final entry in entries.entries) {
-        final serialized = _serializeValue(entry.value);
-        batchData[entry.key.codeUnits] = serialized;
-        _cache.put(entry.key, serialized, level: CacheLevel.l1);
-        
-        events.add(DatabaseChangeEvent(
-          type: ChangeType.put,
-          key: entry.key,
-          value: entry.value,
-          timestamp: DateTime.now(),
-        ));
-      }
+    for (final entry in entries.entries) {
+      final serialized = _serializeValue(entry.value);
+      final finalValue = _encryptionEngine?.encrypt(serialized) ?? serialized;
+      batchData[entry.key.codeUnits] = finalValue;
+      _cache.put(entry.key, finalValue, level: CacheLevel.l1);
+      
+      events.add(DatabaseChangeEvent(
+        type: ChangeType.put,
+        key: entry.key,
+        value: entry.value,
+        timestamp: DateTime.now(),
+      ));
     }
     
     // Single batch write to storage (faster than individual writes)
@@ -574,7 +523,7 @@ class ReaxDB {
       final rawValue = rawResults[keyBytes[i]];
       
       if (rawValue != null) {
-        final decrypted = _encryptionKey != null ? _decrypt(rawValue) : rawValue;
+        final decrypted = _encryptionEngine?.decrypt(rawValue) ?? rawValue;
         result[key] = _deserializeValue<T>(decrypted);
         // Cache for future access
         _cache.put(key, decrypted, level: CacheLevel.l1);
@@ -652,6 +601,7 @@ class DatabaseConfig {
   final int maxImmutableMemtables;
   final int cacheSize;
   final bool enableCache;
+  final EncryptionType encryptionType;
 
   const DatabaseConfig({
     required this.memtableSizeMB,
@@ -664,6 +614,7 @@ class DatabaseConfig {
     required this.maxImmutableMemtables,
     required this.cacheSize,
     required this.enableCache,
+    this.encryptionType = EncryptionType.none,
   });
 
   factory DatabaseConfig.defaultConfig() => const DatabaseConfig(
@@ -677,6 +628,37 @@ class DatabaseConfig {
     maxImmutableMemtables: 4,
     cacheSize: 50,
     enableCache: true,
+    encryptionType: EncryptionType.none,
+  );
+  
+  /// Creates a config with XOR encryption (fast but less secure)
+  factory DatabaseConfig.withXorEncryption() => const DatabaseConfig(
+    memtableSizeMB: 4,
+    pageSize: 4096,
+    l1CacheSize: 1000,
+    l2CacheSize: 10000,
+    l3CacheSize: 100,
+    compressionEnabled: true,
+    syncWrites: true,
+    maxImmutableMemtables: 4,
+    cacheSize: 50,
+    enableCache: true,
+    encryptionType: EncryptionType.xor,
+  );
+  
+  /// Creates a config with AES-256 encryption (secure but slower)
+  factory DatabaseConfig.withAes256Encryption() => const DatabaseConfig(
+    memtableSizeMB: 4,
+    pageSize: 4096,
+    l1CacheSize: 1000,
+    l2CacheSize: 10000,
+    l3CacheSize: 100,
+    compressionEnabled: true,
+    syncWrites: true,
+    maxImmutableMemtables: 4,
+    cacheSize: 50,
+    enableCache: true,
+    encryptionType: EncryptionType.aes256,
   );
 }
 

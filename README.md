@@ -1,8 +1,16 @@
 # ReaxDB
 
+[![pub package](https://img.shields.io/pub/v/reaxdb_dart.svg)](https://pub.dev/packages/reaxdb_dart)
+[![GitHub stars](https://img.shields.io/github/stars/dvillegastech/ReaxBD.svg)](https://github.com/dvillegastech/ReaxBD/stargazers)
+[![GitHub license](https://img.shields.io/github/license/dvillegastech/ReaxBD.svg)](https://github.com/dvillegastech/ReaxBD/blob/main/LICENSE)
+[![Flutter](https://img.shields.io/badge/Flutter-%E2%9D%A4-blue)](https://flutter.dev)
+[![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android%20%7C%20macOS%20%7C%20Windows%20%7C%20Linux-blue)](https://flutter.dev)
+
 The fastest NoSQL database for Flutter. Store millions of records with 21,000+ writes per second, instant reads from cache, and built-in encryption. Perfect for offline-first apps, real-time sync, and large datasets. Works on all platforms with zero native dependencies.
 
-## 🆕 What's New in v1.1.0
+**Keywords:** Flutter database, NoSQL, offline-first, local storage, cache, encryption, ACID transactions, real-time sync, mobile database, embedded database, key-value store, document database, high performance, zero dependencies
+
+## 🆕 What's New in v1.1.1
 - **Secondary Indexes** - Query any field with lightning speed
 - **Query Builder** - Powerful API for complex queries  
 - **Range Queries** - Find documents between values
@@ -27,7 +35,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  reaxdb_dart: ^1.1.0
+  reaxdb_dart: ^1.1.1
 ```
 
 Then run:
@@ -269,6 +277,14 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 Contributions are welcome! Please read our contributing guidelines and submit pull requests to our repository.
 
+## Support the Project
+
+If you find ReaxDB useful, please consider supporting its development:
+
+<a href="https://buymeacoffee.com/dvillegas" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
+Your support helps maintain and improve ReaxDB!
+
 ## Support
 
-For issues, questions, or contributions, please visit our GitHub repository or contact our support team.
+For issues, questions, or contributions, please visit our [GitHub repository](https://github.com/dvillegastech/ReaxBD) or contact our support team.

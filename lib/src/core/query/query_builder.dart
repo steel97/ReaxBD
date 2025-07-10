@@ -140,8 +140,12 @@ class QueryBuilder {
         // Get all documents via the index by doing a full range scan
         candidateIds = (await index.findRange(null, null)).toSet();
       } else {
-        // TODO: Implement collection scanning
-        // For now, return empty
+        // Collection scanning not implemented - requires storage engine enhancement
+        // Current architecture limitation: HybridStorageEngine doesn't support
+        // efficient prefix scanning needed for collection-wide queries.
+        //
+        // Workaround: Create indexes on fields you want to query.
+        // Future enhancement: Add scanPrefix method to HybridStorageEngine.
         debugPrint('Warning: Query without index not yet implemented');
         return [];
       }

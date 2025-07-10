@@ -188,6 +188,8 @@ class WriteAheadLog {
     );
     
     await _writeEntry(entry);
+    // Ensure tombstones are immediately flushed for consistency
+    await _flushPendingWrites();
   }
   
   /// Appends a checkpoint marker to the log
@@ -217,8 +219,7 @@ class WriteAheadLog {
     _logFiles.sort((a, b) => path.basename(a.path).compareTo(path.basename(b.path)));
     
     for (final logFile in _logFiles) {
-      if (logFile == _currentLogFile) continue; // Skip current active file
-      
+      // Read all log files including current one for complete recovery
       final fileEntries = await _readLogFile(logFile);
       entries.addAll(fileEntries);
     }
@@ -239,14 +240,27 @@ class WriteAheadLog {
   /// Closes the Write-Ahead Log
   Future<void> close() async {
     _flushTimer?.cancel();
+    _flushTimer = null;
     
-    // Flush any pending writes
-    if (_pendingWrites.isNotEmpty) {
-      await _flushPendingWrites();
+    // Ensure all pending writes are flushed before closing
+    while (_pendingWrites.isNotEmpty || _isFlushing) {
+      if (!_isFlushing && _pendingWrites.isNotEmpty) {
+        await _flushPendingWrites();
+      } else if (_isFlushing) {
+        // Wait a bit for current flush to complete
+        await Future.delayed(Duration(milliseconds: 1));
+      }
     }
     
-    await _currentSink?.close();
-    _currentSink = null;
+    // Close sink safely
+    if (_currentSink != null) {
+      try {
+        await _currentSink!.close();
+      } catch (e) {
+        // Ignore errors when closing - sink might already be closed
+      }
+      _currentSink = null;
+    }
   }
   
   /// Gets current sequence number
@@ -348,7 +362,14 @@ class WriteAheadLog {
   }
   
   Future<void> _rotateLogFile() async {
-    await _currentSink?.close();
+    if (_currentSink != null) {
+      try {
+        await _currentSink!.close();
+      } catch (e) {
+        // Ignore errors when closing - sink might already be closed
+      }
+      _currentSink = null;
+    }
     await _createNewLogFile();
   }
   

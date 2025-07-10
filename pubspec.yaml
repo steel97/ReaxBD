@@ -1,9 +1,16 @@
 name: reaxdb_dart
 description: "The fastest NoSQL database for Flutter. 21,000+ writes/sec, instant cache reads, built-in encryption. Zero native dependencies."
-version: 1.1.0
+version: 1.1.1
 homepage: https://github.com/dvillegastech/ReaxBD
 repository: https://github.com/dvillegastech/ReaxBD
 issue_tracker: https://github.com/dvillegastech/ReaxBD/issues
+
+topics:
+  - database
+  - nosql
+  - offline-first
+  - storage
+  - cache
 
 environment:
   sdk: ^3.7.2
@@ -13,10 +20,13 @@ dependencies:
   flutter:
     sdk: flutter
   path: ^1.8.3
+  crypto: ^3.0.3
+  pointycastle: ^4.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  test: ^1.24.0
   flutter_lints: ^5.0.0
   mockito: ^5.4.4
   build_runner: ^2.4.13
