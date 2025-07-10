@@ -2,9 +2,14 @@ import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
-import 'package:pointycastle/export.dart';
 
 import 'encryption_type.dart';
+
+// Conditional import for PointyCastle (WASM compatibility)
+import 'package:pointycastle/export.dart' if (dart.library.js_interop) 'encryption_wasm_fallback.dart';
+
+// WASM detection
+bool get _isWasmRuntime => identical(0, 0.0) || const bool.fromEnvironment('dart.library.js_interop');
 
 /// High-performance encryption engine supporting multiple algorithms
 class EncryptionEngine {
@@ -27,6 +32,11 @@ class EncryptionEngine {
     
     if (_type.requiresKey && (key == null || key.isEmpty)) {
       throw ArgumentError('Encryption key is required for ${_type.displayName}');
+    }
+    
+    // Warn about WASM fallback for AES-256
+    if (_type == EncryptionType.aes256 && _isWasmRuntime) {
+      print('Warning: Running in WASM mode. AES-256 using fallback implementation with reduced security.');
     }
     
     // Pre-compute keys for performance
@@ -77,6 +87,8 @@ class EncryptionEngine {
       'security_level': _type.securityLevel,
       'performance_impact': _type.performanceImpact,
       'version': '1.0',
+      'runtime': _isWasmRuntime ? 'wasm' : 'native',
+      'wasm_fallback': _isWasmRuntime && _type == EncryptionType.aes256,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     };
   }

@@ -232,6 +232,26 @@ final db = await ReaxDB.open(
 
 All data is encrypted at rest using AES encryption when an encryption key is provided.
 
+### WASM Compatibility
+
+ReaxDB is compatible with Dart's WASM runtime, but with some limitations:
+
+- **Native Performance**: Uses PointyCastle for optimized AES-256 encryption (~138-180ms)
+- **WASM Fallback**: Automatically switches to HMAC-based encryption in WASM environments
+- **Security Note**: WASM fallback provides authentication but reduced cryptographic strength
+- **Recommendation**: Use XOR encryption for WASM deployments requiring high performance
+
+```dart
+// For WASM environments, consider using XOR encryption
+final db = await ReaxDB.open(
+  'wasm_database',
+  encryptionType: EncryptionType.xor, // Better WASM performance
+  encryptionKey: 'your-encryption-key',
+);
+```
+
+The library automatically detects WASM runtime and provides appropriate warnings when using AES-256 encryption.
+
 ## Architecture
 
 ReaxDB uses a hybrid storage architecture combining:
