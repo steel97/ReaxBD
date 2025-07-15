@@ -4,7 +4,7 @@ import '../indexing/index_manager.dart';
 import '../indexing/secondary_index.dart';
 import '../../reaxdb.dart';
 
-/// Query operators
+// Query operators
 enum QueryOperator {
   equals,
   notEquals,
@@ -17,7 +17,7 @@ enum QueryOperator {
   contains,
 }
 
-/// Query condition
+// Query condition
 class QueryCondition {
   final String field;
   final QueryOperator operator;
@@ -30,7 +30,7 @@ class QueryCondition {
   });
 }
 
-/// Query builder for ReaxDB
+// Query builder
 class QueryBuilder {
   final String collection;
   final ReaxDB _db;
@@ -48,7 +48,7 @@ class QueryBuilder {
   }) : _db = db,
        _indexManager = indexManager;
 
-  /// Adds a where condition
+  // Adds where condition
   QueryBuilder where(String field, QueryOperator operator, dynamic value) {
     _conditions.add(
       QueryCondition(field: field, operator: operator, value: value),
@@ -56,57 +56,55 @@ class QueryBuilder {
     return this;
   }
 
-  /// Convenience method for equality
+  // Where equals
   QueryBuilder whereEquals(String field, dynamic value) {
     return where(field, QueryOperator.equals, value);
   }
 
-  /// Convenience method for greater than
+  // Where greater than
   QueryBuilder whereGreaterThan(String field, dynamic value) {
     return where(field, QueryOperator.greaterThan, value);
   }
 
-  /// Convenience method for less than
+  // Where less than
   QueryBuilder whereLessThan(String field, dynamic value) {
     return where(field, QueryOperator.lessThan, value);
   }
 
-  /// Convenience method for range queries
+  // Where between
   QueryBuilder whereBetween(String field, dynamic start, dynamic end) {
     return where(field, QueryOperator.between, [start, end]);
   }
 
-  /// Convenience method for IN queries
+  // Where in
   QueryBuilder whereIn(String field, List<dynamic> values) {
     return where(field, QueryOperator.inList, values);
   }
 
-  /// Orders results by a field
+  // Orders results
   QueryBuilder orderBy(String field, {bool descending = false}) {
     _orderByField = field;
     _orderDescending = descending;
     return this;
   }
 
-  /// Limits the number of results
+  // Limits results
   QueryBuilder limit(int count) {
     _limitValue = count;
     return this;
   }
 
-  /// Skips a number of results
+  // Skips results
   QueryBuilder offset(int count) {
     _offsetValue = count;
     return this;
   }
 
-  /// Executes the query and returns all matching documents
+  // Executes query
   Future<List<Map<String, dynamic>>> find() async {
-    // Start with all document IDs or use index if available
     Set<String> candidateIds = {};
     bool hasIndexedQuery = false;
 
-    // Try to use indexes for efficient filtering
     for (final condition in _conditions) {
       final index = _indexManager.getIndex(collection, condition.field);
 
@@ -117,40 +115,27 @@ class QueryBuilder {
         if (candidateIds.isEmpty) {
           candidateIds = indexResults.toSet();
         } else {
-          // Intersect with previous results
           candidateIds = candidateIds.intersection(indexResults.toSet());
         }
 
-        // Early exit if no candidates left
         if (candidateIds.isEmpty) {
           return [];
         }
       }
     }
 
-    // If no indexed query, we need to scan all documents
     if (!hasIndexedQuery) {
-      // For ordering without conditions, we need all documents
       if (_orderByField != null &&
           _indexManager.getIndex(collection, _orderByField!) != null) {
-        // We have an index on the order field, so we can use it
         final index = _indexManager.getIndex(collection, _orderByField!)!;
 
-        // Get all documents via the index by doing a full range scan
         candidateIds = (await index.findRange(null, null)).toSet();
       } else {
-        // Collection scanning not implemented - requires storage engine enhancement
-        // Current architecture limitation: HybridStorageEngine doesn't support
-        // efficient prefix scanning needed for collection-wide queries.
-        //
-        // Workaround: Create indexes on fields you want to query.
-        // Future enhancement: Add scanPrefix method to HybridStorageEngine.
-        debugPrint('Warning: Query without index not yet implemented');
+        debugPrint('Query without index not implemented');
         return [];
       }
     }
 
-    // Load documents and apply remaining filters
     final results = <Map<String, dynamic>>[];
 
     for (final docId in candidateIds) {
@@ -161,12 +146,10 @@ class QueryBuilder {
       }
     }
 
-    // Apply sorting
     if (_orderByField != null) {
       _sortResults(results);
     }
 
-    // Apply offset and limit
     final start = _offsetValue ?? 0;
     final end = _limitValue != null ? start + _limitValue! : results.length;
 
@@ -176,19 +159,18 @@ class QueryBuilder {
     );
   }
 
-  /// Executes the query and returns the first matching document
+  // Finds one document
   Future<Map<String, dynamic>?> findOne() async {
     final results = await limit(1).find();
     return results.isEmpty ? null : results.first;
   }
 
-  /// Counts matching documents
+  // Counts documents
   Future<int> count() async {
     final results = await find();
     return results.length;
   }
 
-  /// Checks if a condition can use an index
   bool _canUseIndex(QueryCondition condition) {
     switch (condition.operator) {
       case QueryOperator.equals:
@@ -203,7 +185,6 @@ class QueryBuilder {
     }
   }
 
-  /// Queries an index for matching document IDs
   Future<List<String>> _queryIndex(
     SecondaryIndex index,
     QueryCondition condition,
@@ -244,13 +225,11 @@ class QueryBuilder {
     }
   }
 
-  /// Loads a document by ID
   Future<Map<String, dynamic>?> _loadDocument(String docId) async {
     final key = '$collection:$docId';
     return await _db.get<Map<String, dynamic>>(key);
   }
 
-  /// Checks if a document matches all conditions
   bool _matchesAllConditions(Map<String, dynamic> doc) {
     for (final condition in _conditions) {
       if (!_matchesCondition(doc, condition)) {
@@ -260,7 +239,6 @@ class QueryBuilder {
     return true;
   }
 
-  /// Checks if a document matches a single condition
   bool _matchesCondition(Map<String, dynamic> doc, QueryCondition condition) {
     final fieldValue = doc[condition.field];
 
@@ -301,7 +279,6 @@ class QueryBuilder {
     }
   }
 
-  /// Compares two values
   int _compare(dynamic a, dynamic b) {
     if (a == null && b == null) return 0;
     if (a == null) return -1;
@@ -314,7 +291,6 @@ class QueryBuilder {
     return a.toString().compareTo(b.toString());
   }
 
-  /// Sorts results by the order field
   void _sortResults(List<Map<String, dynamic>> results) {
     results.sort((a, b) {
       final aValue = a[_orderByField!];

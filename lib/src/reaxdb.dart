@@ -39,7 +39,6 @@ class ReaxDB {
        _indexManager = indexManager,
        _encryptionEngine = encryptionEngine;
 
-  /// Opens a ReaxDB instance
   static Future<ReaxDB> open(
     String name, {
     DatabaseConfig? config,
@@ -78,7 +77,6 @@ class ReaxDB {
 
     await indexManager.loadIndexes();
 
-    // Create encryption engine if needed
     EncryptionEngine? encryptionEngine;
     if (config.encryptionType != EncryptionType.none) {
       encryptionEngine = EncryptionEngine(
@@ -100,7 +98,6 @@ class ReaxDB {
     return db;
   }
 
-  /// ULTRA-OPTIMIZED put operation (faster than Isar/Hive)
   Future<void> put(String key, dynamic value) async {
     _ensureOpen();
 
@@ -108,13 +105,10 @@ class ReaxDB {
     final finalValue =
         _encryptionEngine?.encrypt(serializedValue) ?? serializedValue;
 
-    // Cache first for immediate reads (0.01ms latency)
     _cache.put(key, finalValue, level: CacheLevel.l1);
 
-    // Async write to storage with connection pooling
     await _storageEngine.put(key.codeUnits, finalValue);
 
-    // Update indexes if this is a collection document
     if (key.contains(':') && value is Map<String, dynamic>) {
       final parts = key.split(':');
       if (parts.length >= 2) {
@@ -135,11 +129,9 @@ class ReaxDB {
     _notifyPatternStreams(key, event);
   }
 
-  /// Gets the value associated with a key
   Future<T?> get<T>(String key) async {
     _ensureOpen();
 
-    // L1 cache hit - FASTEST PATH (0.01ms like Isar)
     final cached = _cache.get(key);
     if (cached != null) {
       final decryptedCached = _encryptionEngine?.decrypt(cached) ?? cached;
@@ -152,17 +144,14 @@ class ReaxDB {
     final decryptedValue = _encryptionEngine?.decrypt(rawValue) ?? rawValue;
     final value = _deserializeValue<T>(decryptedValue);
 
-    // Promote to L1 cache for next access
     _cache.put(key, decryptedValue, level: CacheLevel.l1);
 
     return value;
   }
 
-  /// Deletes a key
   Future<void> delete(String key) async {
     _ensureOpen();
 
-    // Get the document before deletion for index updates
     dynamic oldValue;
     if (key.contains(':')) {
       oldValue = await get(key);
@@ -171,7 +160,6 @@ class ReaxDB {
     await _storageEngine.delete(key.codeUnits);
     _cache.remove(key);
 
-    // Update indexes if this was a collection document
     if (key.contains(':') && oldValue is Map<String, dynamic>) {
       final parts = key.split(':');
       if (parts.length >= 2) {
@@ -192,7 +180,6 @@ class ReaxDB {
     _notifyPatternStreams(key, event);
   }
 
-  /// Executes an ACID transaction
   Future<T> transaction<T>(Future<T> Function(Transaction) operation) async {
     _ensureOpen();
 
@@ -201,7 +188,6 @@ class ReaxDB {
     });
   }
 
-  /// Stream of changes for a specific key or pattern
   Stream<DatabaseChangeEvent> stream(String keyPattern) {
     if (!_patternStreams.containsKey(keyPattern)) {
       _patternStreams[keyPattern] =
@@ -210,34 +196,28 @@ class ReaxDB {
     return _patternStreams[keyPattern]!.stream;
   }
 
-  /// Stream of all database changes
   Stream<DatabaseChangeEvent> get changeStream => _changeStream.stream;
 
-  /// Compacts the database to optimize storage
   Future<void> compact() async {
     _ensureOpen();
     await _storageEngine.compact();
   }
 
-  /// Creates a secondary index on a field
   Future<void> createIndex(String collection, String fieldName) async {
     _ensureOpen();
     await _indexManager.createIndex(collection, fieldName);
   }
 
-  /// Drops a secondary index
   Future<void> dropIndex(String collection, String fieldName) async {
     _ensureOpen();
     await _indexManager.dropIndex(collection, fieldName);
   }
 
-  /// Lists all indexes
   List<String> listIndexes() {
     _ensureOpen();
     return _indexManager.listIndexes();
   }
 
-  /// Creates a query builder for a collection
   QueryBuilder collection(String name) {
     _ensureOpen();
     return QueryBuilder(
@@ -247,7 +227,6 @@ class ReaxDB {
     );
   }
 
-  /// Convenience method for simple queries
   Future<List<Map<String, dynamic>>> where(
     String collection,
     String field,
@@ -256,7 +235,6 @@ class ReaxDB {
     return this.collection(collection).whereEquals(field, value).find();
   }
 
-  /// Closes the database
   Future<void> close() async {
     if (!_isOpen) return;
 
@@ -273,7 +251,7 @@ class ReaxDB {
     _isOpen = false;
   }
 
-  /// Gets database info
+  // Gets database info
   Future<DatabaseInfo> getDatabaseInfo() async {
     _ensureOpen();
 
@@ -288,7 +266,7 @@ class ReaxDB {
     );
   }
 
-  /// Gets database statistics
+  // Gets database statistics
   Future<Map<String, dynamic>> getStatistics() async {
     _ensureOpen();
 
@@ -324,33 +302,30 @@ class ReaxDB {
     }
   }
 
-  /// ZERO-COPY serialization for maximum performance
   Uint8List serializeValue(dynamic value) {
-    // Direct binary serialization for primitive types (faster than JSON)
     if (value is String) {
       final bytes = utf8.encode(value);
       final result = ByteData(5 + bytes.length);
-      result.setUint8(0, 0); // Type marker for String
+      result.setUint8(0, 0);
       result.setUint32(1, bytes.length, Endian.little);
       final buffer = result.buffer.asUint8List();
       buffer.setRange(5, 5 + bytes.length, bytes);
       return buffer;
     } else if (value is int) {
       final bytes = ByteData(9);
-      bytes.setUint8(0, 1); // Type marker for int
+      bytes.setUint8(0, 1);
       bytes.setInt64(1, value, Endian.little);
       return bytes.buffer.asUint8List();
     } else if (value is double) {
       final bytes = ByteData(9);
-      bytes.setUint8(0, 2); // Type marker for double
+      bytes.setUint8(0, 2);
       bytes.setFloat64(1, value, Endian.little);
       return bytes.buffer.asUint8List();
     } else if (value is bool) {
-      return Uint8List.fromList([3, value ? 1 : 0]); // Type marker 3 for bool
+      return Uint8List.fromList([3, value ? 1 : 0]);
     } else if (value is List<int>) {
-      // Direct byte array - zero copy
       final header = ByteData(5);
-      header.setUint8(0, 4); // Type marker for byte array
+      header.setUint8(0, 4);
       header.setUint32(1, value.length, Endian.little);
       final result = Uint8List(5 + value.length);
       result.setRange(0, 5, header.buffer.asUint8List());
@@ -358,11 +333,10 @@ class ReaxDB {
       return result;
     }
 
-    // Fallback to JSON for complex objects
     final json = jsonEncode(value);
     final jsonBytes = utf8.encode(json);
     final header = ByteData(5);
-    header.setUint8(0, 255); // JSON type marker
+    header.setUint8(0, 255);
     header.setUint32(1, jsonBytes.length, Endian.little);
     final result = Uint8List(5 + jsonBytes.length);
     result.setRange(0, 5, header.buffer.asUint8List());
@@ -370,7 +344,6 @@ class ReaxDB {
     return result;
   }
 
-  /// ZERO-COPY deserialization with type detection
   T? deserializeValue<T>(Uint8List data) {
     if (data.isEmpty) return null;
 
@@ -378,37 +351,37 @@ class ReaxDB {
 
     try {
       switch (typeMarker) {
-        case 0: // String
+        case 0:
           final length = ByteData.view(
             data.buffer,
             data.offsetInBytes + 1,
             4,
           ).getUint32(0, Endian.little);
           return utf8.decode(data.sublist(5, 5 + length)) as T?;
-        case 1: // int
+        case 1:
           return ByteData.view(
                 data.buffer,
                 data.offsetInBytes + 1,
                 8,
               ).getInt64(0, Endian.little)
               as T?;
-        case 2: // double
+        case 2:
           return ByteData.view(
                 data.buffer,
                 data.offsetInBytes + 1,
                 8,
               ).getFloat64(0, Endian.little)
               as T?;
-        case 3: // bool
+        case 3:
           return (data[1] == 1) as T?;
-        case 4: // List<int>
+        case 4:
           final length = ByteData.view(
             data.buffer,
             data.offsetInBytes + 1,
             4,
           ).getUint32(0, Endian.little);
           return data.sublist(5, 5 + length) as T?;
-        case 255: // JSON
+        case 255:
           final length = ByteData.view(
             data.buffer,
             data.offsetInBytes + 1,
@@ -417,12 +390,10 @@ class ReaxDB {
           final json = utf8.decode(data.sublist(5, 5 + length));
           return jsonDecode(json) as T?;
         default:
-          // Legacy format without type marker
           final json = utf8.decode(data);
           return jsonDecode(json) as T?;
       }
     } catch (e) {
-      // Fallback for legacy data
       try {
         final json = utf8.decode(data);
         return jsonDecode(json) as T?;
@@ -432,17 +403,17 @@ class ReaxDB {
     }
   }
 
-  /// Encrypts data using the configured encryption engine
+  // Encrypts data
   Uint8List encryptData(Uint8List data) {
     return _encryptionEngine?.encrypt(data) ?? data;
   }
 
-  /// Decrypts data using the configured encryption engine
+  // Decrypts data
   Uint8List decryptData(Uint8List data) {
     return _encryptionEngine?.decrypt(data) ?? data;
   }
 
-  /// Gets encryption information
+  // Gets encryption information
   Map<String, dynamic> getEncryptionInfo() {
     if (_encryptionEngine == null) {
       return {
@@ -459,7 +430,6 @@ class ReaxDB {
     return _encryptionEngine.getMetadata();
   }
 
-  // Private methods that use the public ones
   Uint8List _serializeValue(dynamic value) => serializeValue(value);
   T? _deserializeValue<T>(Uint8List data) => deserializeValue<T>(data);
 
@@ -479,14 +449,13 @@ class ReaxDB {
     return key == pattern;
   }
 
-  /// BATCH OPERATIONS for maximum throughput (beats Isar/Hive)
+  // Batch operations for maximum throughput
   Future<void> putBatch(Map<String, dynamic> entries) async {
     _ensureOpen();
 
     final batchData = <List<int>, Uint8List>{};
     final events = <DatabaseChangeEvent>[];
 
-    // Prepare all data first - batch encryption for better performance
     for (final entry in entries.entries) {
       final serialized = _serializeValue(entry.value);
       final finalValue = _encryptionEngine?.encrypt(serialized) ?? serialized;
@@ -503,10 +472,8 @@ class ReaxDB {
       );
     }
 
-    // Single batch write to storage (faster than individual writes)
     await _storageEngine.putBatch(batchData);
 
-    // Update indexes for collection documents
     for (final entry in entries.entries) {
       final key = entry.key;
       final value = entry.value;
@@ -521,18 +488,16 @@ class ReaxDB {
       }
     }
 
-    // Notify all streams
     for (final event in events) {
       _changeStream.add(event);
       _notifyPatternStreams(event.key, event);
     }
   }
 
-  /// PARALLEL GET operations
+  // Parallel GET operations
   Future<Map<String, T?>> getBatch<T>(List<String> keys) async {
     _ensureOpen();
 
-    // Use storage engine batch get for efficiency
     final keyBytes = keys.map((k) => k.codeUnits).toList();
     final rawResults = await _storageEngine.getBatch(keyBytes);
 
@@ -544,7 +509,6 @@ class ReaxDB {
       if (rawValue != null) {
         final decrypted = _encryptionEngine?.decrypt(rawValue) ?? rawValue;
         result[key] = _deserializeValue<T>(decrypted);
-        // Cache for future access
         _cache.put(key, decrypted, level: CacheLevel.l1);
       } else {
         result[key] = null;
@@ -554,7 +518,7 @@ class ReaxDB {
     return result;
   }
 
-  /// RANGE SCAN operations (like Isar queries)
+  // Range scan operations
   Future<Map<String, T?>> scan<T>({
     String? startKey,
     String? endKey,
@@ -562,21 +526,17 @@ class ReaxDB {
   }) async {
     _ensureOpen();
 
-    // This would require implementing range scan in storage engine
-    // For now, we'll return empty - would need storage engine enhancement
     return <String, T?>{};
   }
 
-  /// PREFIX SCAN operations (faster than Hive prefix search)
+  // Prefix scan operations
   Future<Map<String, T?>> scanPrefix<T>(String prefix, {int? limit}) async {
     _ensureOpen();
 
-    // This would require implementing prefix scan in storage engine
-    // For now, we'll return empty - would need storage engine enhancement
     return <String, T?>{};
   }
 
-  /// ATOMIC OPERATIONS for consistency
+  // Atomic operations
   Future<bool> compareAndSwap<T>(
     String key,
     T? expectedValue,
@@ -592,7 +552,7 @@ class ReaxDB {
     return false;
   }
 
-  /// PERFORMANCE PROFILING
+  // Performance profiling
   Map<String, dynamic> getPerformanceStats() {
     final cacheStats = _cache.getStats();
     return {
@@ -615,7 +575,7 @@ class ReaxDB {
   }
 }
 
-/// Database configuration
+// Database configuration
 class DatabaseConfig {
   final int memtableSizeMB;
   final int pageSize;
@@ -657,7 +617,7 @@ class DatabaseConfig {
     encryptionType: EncryptionType.none,
   );
 
-  /// Creates a config with XOR encryption (fast but less secure)
+  // Creates config with XOR encryption
   factory DatabaseConfig.withXorEncryption() => const DatabaseConfig(
     memtableSizeMB: 4,
     pageSize: 4096,
@@ -672,7 +632,7 @@ class DatabaseConfig {
     encryptionType: EncryptionType.xor,
   );
 
-  /// Creates a config with AES-256 encryption (secure but slower)
+  // Creates config with AES-256 encryption
   factory DatabaseConfig.withAes256Encryption() => const DatabaseConfig(
     memtableSizeMB: 4,
     pageSize: 4096,
@@ -688,7 +648,7 @@ class DatabaseConfig {
   );
 }
 
-/// Database change event
+// Database change event
 class DatabaseChangeEvent {
   final ChangeType type;
   final String key;
@@ -705,7 +665,7 @@ class DatabaseChangeEvent {
 
 enum ChangeType { put, delete, transaction }
 
-/// Database exception
+// Database exception
 class DatabaseException implements Exception {
   final String message;
   const DatabaseException(this.message);
@@ -714,7 +674,7 @@ class DatabaseException implements Exception {
   String toString() => 'DatabaseException: $message';
 }
 
-/// Wrapper for transactional operations
+// Wrapper for transactional operations
 class Transaction {
   final ReaxDB _db;
   final tx_manager.Transaction _tx;

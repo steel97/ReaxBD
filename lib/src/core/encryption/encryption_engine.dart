@@ -5,24 +5,20 @@ import 'package:flutter/foundation.dart';
 
 import 'encryption_type.dart';
 
-// Conditional import for PointyCastle (WASM compatibility)
 import 'package:pointycastle/export.dart'
     if (dart.library.js_interop) 'encryption_wasm_fallback.dart';
 
-// WASM detection
 bool get _isWasmRuntime =>
     identical(0, 0.0) || const bool.fromEnvironment('dart.library.js_interop');
 
-/// High-performance encryption engine supporting multiple algorithms
+// Encryption engine
 class EncryptionEngine {
   final EncryptionType _type;
   final String? _key;
 
-  // Cached keys for performance
   Uint8List? _expandedXorKey;
   Uint8List? _aesKey;
 
-  // PointyCastle cipher for AES-256-GCM
   GCMBlockCipher? _gcmCipher;
 
   EncryptionEngine({required EncryptionType type, String? key})
@@ -34,16 +30,12 @@ class EncryptionEngine {
       );
     }
 
-    // Warn about WASM fallback for AES-256
     if (_type == EncryptionType.aes256 && _isWasmRuntime) {
-      // Note: Using print for WASM compatibility warning as this is a critical security notice
-      // ignore: avoid_print
       print(
         'Warning: Running in WASM mode. AES-256 using fallback implementation with reduced security.',
       );
     }
 
-    // Pre-compute keys for performance
     if (_type == EncryptionType.xor && _key != null) {
       _expandedXorKey = _expandXorKey(_key);
     } else if (_type == EncryptionType.aes256 && _key != null) {
@@ -52,14 +44,13 @@ class EncryptionEngine {
     }
   }
 
-  /// Encrypts data using the configured algorithm
+  // Encrypts data
   Uint8List encrypt(Uint8List data) {
-    // Fast path for no encryption - avoid switch overhead
     if (_type == EncryptionType.none) return data;
 
     switch (_type) {
       case EncryptionType.none:
-        return data; // Should never reach here
+        return data;
       case EncryptionType.xor:
         return _encryptXor(data);
       case EncryptionType.aes256:
@@ -67,14 +58,13 @@ class EncryptionEngine {
     }
   }
 
-  /// Decrypts data using the configured algorithm
+  // Decrypts data
   Uint8List decrypt(Uint8List data) {
-    // Fast path for no encryption - avoid switch overhead
     if (_type == EncryptionType.none) return data;
 
     switch (_type) {
       case EncryptionType.none:
-        return data; // Should never reach here
+        return data;
       case EncryptionType.xor:
         return _decryptXor(data);
       case EncryptionType.aes256:
@@ -82,7 +72,7 @@ class EncryptionEngine {
     }
   }
 
-  /// Gets encryption metadata for storage
+  // Gets encryption metadata
   Map<String, dynamic> getMetadata() {
     return {
       'enabled': _type != EncryptionType.none,
@@ -97,13 +87,11 @@ class EncryptionEngine {
     };
   }
 
-  // XOR Implementation (optimized from original)
   Uint8List _encryptXor(Uint8List data) {
     final key = _expandedXorKey!;
     final encrypted = Uint8List(data.length);
     final keyLen = key.length;
 
-    // Unrolled loop for better performance (16 bytes at a time)
     int i = 0;
     for (; i + 16 <= data.length; i += 16) {
       encrypted[i] = data[i] ^ key[i % keyLen];
@@ -124,7 +112,6 @@ class EncryptionEngine {
       encrypted[i + 15] = data[i + 15] ^ key[(i + 15) % keyLen];
     }
 
-    // Process remaining bytes
     for (; i < data.length; i++) {
       encrypted[i] = data[i] ^ key[i % keyLen];
     }
@@ -133,19 +120,14 @@ class EncryptionEngine {
   }
 
   Uint8List _decryptXor(Uint8List data) {
-    // XOR decryption is the same as encryption
     return _encryptXor(data);
   }
 
-  // Optimized AES-256-GCM Implementation using PointyCastle
   Uint8List _encryptAes256(Uint8List data) {
-    // Initialize GCM cipher if not already done
     _gcmCipher ??= _createGcmCipher();
 
-    // Use a simple counter-based IV for better performance (still secure for this use case)
     final iv = _generateFastIV();
 
-    // Initialize cipher for encryption
     final params = AEADParameters(
       KeyParameter(_aesKey!),
       128,
@@ -154,10 +136,8 @@ class EncryptionEngine {
     );
     _gcmCipher!.init(true, params);
 
-    // Encrypt data
     final encrypted = _gcmCipher!.process(data);
 
-    // Prepend IV to encrypted data (optimized memory allocation)
     final result =
         Uint8List(12 + encrypted.length)
           ..setRange(0, 12, iv)
@@ -171,14 +151,11 @@ class EncryptionEngine {
       throw ArgumentError('Invalid encrypted data: too short');
     }
 
-    // Initialize GCM cipher if not already done
     _gcmCipher ??= _createGcmCipher();
 
-    // Extract IV and encrypted data (optimized)
     final iv = Uint8List.view(data.buffer, 0, 12);
     final encrypted = Uint8List.view(data.buffer, 12);
 
-    // Initialize cipher for decryption
     final params = AEADParameters(
       KeyParameter(_aesKey!),
       128,
@@ -187,31 +164,25 @@ class EncryptionEngine {
     );
     _gcmCipher!.init(false, params);
 
-    // Decrypt data
     return _gcmCipher!.process(encrypted);
   }
 
-  // Initialize AES-GCM cipher
   void _initializeAesGcm() {
     _gcmCipher = _createGcmCipher();
   }
 
-  // Create GCM cipher instance
   GCMBlockCipher _createGcmCipher() {
     final aes = AESEngine();
     return GCMBlockCipher(aes);
   }
 
-  // Fast IV generation using counter (more efficient than secure random for bulk operations)
   int _ivCounter = 0;
   Uint8List _generateFastIV() {
     final iv = Uint8List(12);
     final counter = ++_ivCounter;
 
-    // Use timestamp + counter for uniqueness
     final timestamp = DateTime.now().millisecondsSinceEpoch;
 
-    // Pack timestamp (8 bytes) + counter (4 bytes) into 12-byte IV
     for (int i = 0; i < 8; i++) {
       iv[i] = (timestamp >> (i * 8)) & 0xFF;
     }
@@ -222,10 +193,8 @@ class EncryptionEngine {
     return iv;
   }
 
-  // Helper methods
   Uint8List _expandXorKey(String key) {
     final keyBytes = Uint8List.fromList(key.codeUnits);
-    // Expand key to 512 bytes to reduce modulo operations
     const expandedLength = 512;
     final expanded = Uint8List(expandedLength);
 
@@ -238,13 +207,9 @@ class EncryptionEngine {
   }
 
   Uint8List _deriveAesKey(String password) {
-    // Use simple key derivation with SHA-256
-    final salt = utf8.encode(
-      'ReaxDB_Salt_v1_2025',
-    ); // Static salt for simplicity
+    final salt = utf8.encode('ReaxDB_Salt_v1_2025');
     final combined = utf8.encode(password) + salt;
 
-    // Multiple rounds of hashing for key strengthening
     var hash = sha256.convert(combined).bytes;
     for (int i = 0; i < 10000; i++) {
       hash = sha256.convert(hash).bytes;
@@ -252,5 +217,4 @@ class EncryptionEngine {
 
     return Uint8List.fromList(hash);
   }
-
 }

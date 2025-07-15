@@ -3,10 +3,10 @@ import 'dart:typed_data';
 import 'dart:async';
 import 'package:path/path.dart' as path;
 
-/// Write-Ahead Log entry types
+// WAL entry types
 enum WALEntryType { put, delete, checkpoint }
 
-/// Write-Ahead Log entry
+// WAL entry
 class WALEntry {
   final WALEntryType type;
   final List<int> key;
@@ -22,7 +22,7 @@ class WALEntry {
     required this.sequenceNumber,
   });
 
-  /// Serializes entry to bytes
+  // Serializes to bytes
   Uint8List toBytes() {
     final keyBytes = Uint8List.fromList(key);
     final valueBytes = value ?? Uint8List(0);
@@ -31,61 +31,47 @@ class WALEntry {
 
     final buffer = BytesBuilder();
 
-    // Entry type (1 byte)
     buffer.addByte(type.index);
 
-    // Sequence number (8 bytes)
     buffer.add(sequenceBytes);
 
-    // Timestamp (8 bytes)
     buffer.add(timestampBytes);
 
-    // Key length (4 bytes)
     buffer.add(_int32ToBytes(keyBytes.length));
 
-    // Key
     buffer.add(keyBytes);
 
-    // Value length (4 bytes)
     buffer.add(_int32ToBytes(valueBytes.length));
 
-    // Value
     buffer.add(valueBytes);
 
     return buffer.toBytes();
   }
 
-  /// Deserializes entry from bytes
+  // Deserializes from bytes
   static WALEntry fromBytes(Uint8List bytes) {
     int offset = 0;
 
-    // Entry type
     final type = WALEntryType.values[bytes[offset]];
     offset += 1;
 
-    // Sequence number
     final sequenceNumber = _bytesToInt64(bytes.sublist(offset, offset + 8));
     offset += 8;
 
-    // Timestamp
     final timestamp = DateTime.fromMillisecondsSinceEpoch(
       _bytesToInt64(bytes.sublist(offset, offset + 8)),
     );
     offset += 8;
 
-    // Key length
     final keyLength = _bytesToInt32(bytes.sublist(offset, offset + 4));
     offset += 4;
 
-    // Key
     final key = bytes.sublist(offset, offset + keyLength);
     offset += keyLength;
 
-    // Value length
     final valueLength = _bytesToInt32(bytes.sublist(offset, offset + 4));
     offset += 4;
 
-    // Value
     final value =
         valueLength > 0 ? bytes.sublist(offset, offset + valueLength) : null;
 
@@ -126,7 +112,7 @@ class WALEntry {
   }
 }
 
-/// Write-Ahead Log for durability and crash recovery
+// Write-Ahead Log
 class WriteAheadLog {
   final String _path;
   final int _maxFileSize;
@@ -136,18 +122,17 @@ class WriteAheadLog {
   int _currentSequenceNumber = 0;
   int _currentFileSize = 0;
 
-  // Batch write buffer for improved throughput
   final List<WALEntry> _pendingWrites = [];
   Timer? _flushTimer;
   bool _isFlushing = false;
 
-  static const int _defaultMaxFileSize = 64 * 1024 * 1024; // 64MB
+  static const int _defaultMaxFileSize = 64 * 1024 * 1024;
 
   WriteAheadLog._({required String path, int maxFileSize = _defaultMaxFileSize})
     : _path = path,
       _maxFileSize = maxFileSize;
 
-  /// Creates a new Write-Ahead Log
+  // Creates WAL
   static Future<WriteAheadLog> create({
     required String basePath,
     int maxFileSize = _defaultMaxFileSize,
@@ -163,7 +148,7 @@ class WriteAheadLog {
     return wal;
   }
 
-  /// Appends a put operation to the log
+  // Appends put operation
   Future<void> append(List<int> key, Uint8List value) async {
     final entry = WALEntry(
       type: WALEntryType.put,
@@ -176,7 +161,7 @@ class WriteAheadLog {
     await _writeEntry(entry);
   }
 
-  /// Appends a delete operation (tombstone) to the log
+  // Appends delete operation
   Future<void> appendTombstone(List<int> key) async {
     final entry = WALEntry(
       type: WALEntryType.delete,
@@ -187,13 +172,11 @@ class WriteAheadLog {
     );
 
     await _writeEntry(entry);
-    // Ensure tombstones are immediately flushed for consistency
     await _flushPendingWrites();
   }
 
-  /// Appends a checkpoint marker to the log
+  // Appends checkpoint
   Future<void> checkpoint() async {
-    // Flush any pending writes first
     if (_pendingWrites.isNotEmpty) {
       await _flushPendingWrites();
     }
@@ -210,17 +193,15 @@ class WriteAheadLog {
     await _rotateLogFile();
   }
 
-  /// Recovers operations from the log
+  // Recovers operations
   Future<List<WALEntry>> recover() async {
     final entries = <WALEntry>[];
 
-    // Sort log files by name (timestamp)
     _logFiles.sort(
       (a, b) => path.basename(a.path).compareTo(path.basename(b.path)),
     );
 
     for (final logFile in _logFiles) {
-      // Read all log files including current one for complete recovery
       final fileEntries = await _readLogFile(logFile);
       entries.addAll(fileEntries);
     }
@@ -228,7 +209,7 @@ class WriteAheadLog {
     return entries;
   }
 
-  /// Truncates log files after successful recovery
+  // Truncates log files
   Future<void> truncate() async {
     for (final logFile in _logFiles.toList()) {
       if (logFile != _currentLogFile) {
@@ -238,36 +219,31 @@ class WriteAheadLog {
     }
   }
 
-  /// Closes the Write-Ahead Log
+  // Closes WAL
   Future<void> close() async {
     _flushTimer?.cancel();
     _flushTimer = null;
 
-    // Ensure all pending writes are flushed before closing
     while (_pendingWrites.isNotEmpty || _isFlushing) {
       if (!_isFlushing && _pendingWrites.isNotEmpty) {
         await _flushPendingWrites();
       } else if (_isFlushing) {
-        // Wait a bit for current flush to complete
         await Future.delayed(Duration(milliseconds: 1));
       }
     }
 
-    // Close sink safely
     if (_currentSink != null) {
       try {
         await _currentSink!.close();
-      } catch (e) {
-        // Ignore errors when closing - sink might already be closed
-      }
+      } catch (e) {}
       _currentSink = null;
     }
   }
 
-  /// Gets current sequence number
+  // Gets sequence number
   int get currentSequenceNumber => _currentSequenceNumber;
 
-  /// Gets log file count
+  // Gets file count
   int get logFileCount => _logFiles.length;
 
   Future<void> _initialize() async {
@@ -283,7 +259,6 @@ class WriteAheadLog {
       if (entity is File && entity.path.endsWith('.wal')) {
         _logFiles.add(entity);
 
-        // Find highest sequence number from existing files
         final entries = await _readLogFile(entity);
         for (final entry in entries) {
           if (entry.sequenceNumber >= _currentSequenceNumber) {
@@ -308,15 +283,13 @@ class WriteAheadLog {
   Future<void> _writeEntry(WALEntry entry) async {
     _pendingWrites.add(entry);
 
-    // Start flush timer if not already running
     _flushTimer ??= Timer(
       Duration(milliseconds: 1),
       () => _flushPendingWrites(),
     );
 
-    // Flush immediately if we have many pending writes
     if (_pendingWrites.length >= 1000) {
-      _flushPendingWrites(); // Don't await - async flush
+      _flushPendingWrites();
     }
   }
 
@@ -331,7 +304,6 @@ class WriteAheadLog {
     _pendingWrites.clear();
 
     try {
-      // Write all entries in a single batch
       final buffer = BytesBuilder();
 
       for (final entry in entriesToFlush) {
@@ -344,21 +316,18 @@ class WriteAheadLog {
         _currentFileSize += lengthBytes.length + entryBytes.length;
       }
 
-      // Write entire buffer at once
       final allBytes = buffer.toBytes();
       if (_currentSink != null) {
         _currentSink!.add(allBytes);
         await _currentSink!.flush();
       }
 
-      // Check if rotation needed
       if (_currentFileSize >= _maxFileSize) {
         await _rotateLogFile();
       }
     } finally {
       _isFlushing = false;
 
-      // Start new timer if more writes came in
       if (_pendingWrites.isNotEmpty) {
         _flushTimer = Timer(
           Duration(milliseconds: 1),
@@ -372,9 +341,7 @@ class WriteAheadLog {
     if (_currentSink != null) {
       try {
         await _currentSink!.close();
-      } catch (e) {
-        // Ignore errors when closing - sink might already be closed
-      }
+      } catch (e) {}
       _currentSink = null;
     }
     await _createNewLogFile();
@@ -390,14 +357,12 @@ class WriteAheadLog {
 
     while (offset < bytes.length) {
       try {
-        // Read entry length
         if (offset + 4 > bytes.length) break;
         final entryLength = WALEntry._bytesToInt32(
           bytes.sublist(offset, offset + 4),
         );
         offset += 4;
 
-        // Read entry data
         if (offset + entryLength > bytes.length) break;
         final entryBytes = bytes.sublist(offset, offset + entryLength);
         offset += entryLength;
@@ -405,7 +370,6 @@ class WriteAheadLog {
         final entry = WALEntry.fromBytes(entryBytes);
         entries.add(entry);
       } catch (e) {
-        // Skip corrupted entries
         break;
       }
     }

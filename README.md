@@ -10,7 +10,10 @@ The fastest NoSQL database for Flutter. Store millions of records with 21,000+ w
 
 **Keywords:** Flutter database, NoSQL, offline-first, local storage, cache, encryption, ACID transactions, real-time sync, mobile database, embedded database, key-value store, document database, high performance, zero dependencies
 
-## 🆕 What's New in v1.2.0 (July 11, 2025)
+## 🆕 What's New in v1.2.1 (July 15, 2025)
+- **Code Improvements** - Minor fixes and optimizations
+
+### Previous v1.2.0 (July 11, 2025)
 - **WASM Compatibility** - Full support for Dart's WASM runtime
 - **Enhanced Encryption API** - New `EncryptionType` enum for better control
 - **AES-256 Performance** - 40% faster AES encryption (138-180ms vs 237ms)
@@ -42,7 +45,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  reaxdb_dart: ^1.2.0
+  reaxdb_dart: ^1.2.1
 ```
 
 Then run:
