@@ -13,7 +13,7 @@ topics:
   - cache
 
 false_secrets:
-  - "*AKIA123456789EXAMPLE*"
+  - "*AKIAIOSFODNN7EXAMPLE*"
 
 environment:
   sdk: ^3.7.2

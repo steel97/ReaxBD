@@ -194,7 +194,7 @@ void main() {
           'password': 'super_secure_password_123!',
           'api_keys': {
             'stripe': 'sk_test_123456789',
-            'aws': 'AKIA123456789EXAMPLE',
+            'aws': 'AKIAIOSFODNN7EXAMPLE',
           },
         };
 
