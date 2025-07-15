@@ -5,7 +5,10 @@ import '../../domain/entities/database_entity.dart';
 // Cache levels
 enum CacheLevel { l1, l2, l3 }
 
-// Cache entry
+/// Represents a cached item with metadata for eviction policies.
+///
+/// Contains the cached value along with access patterns and timing information
+/// used by LRU and LFU cache algorithms.
 class CacheEntry {
   final String key;
   final Uint8List value;
@@ -14,6 +17,14 @@ class CacheEntry {
   final int accessCount;
   final int size;
 
+  /// Creates a new cache entry.
+  ///
+  /// [key] is the cache key identifier.
+  /// [value] is the cached data.
+  /// [accessTime] is when the entry was last accessed.
+  /// [createdTime] is when the entry was created.
+  /// [accessCount] is how many times the entry has been accessed.
+  /// [size] is the memory footprint of the entry.
   CacheEntry({
     required this.key,
     required this.value,
@@ -23,6 +34,7 @@ class CacheEntry {
     required this.size,
   });
 
+  /// Creates a copy of this entry with updated access information.
   CacheEntry copyWithAccess() {
     return CacheEntry(
       key: key,
@@ -35,7 +47,10 @@ class CacheEntry {
   }
 }
 
-// LRU Cache
+/// Least Recently Used cache implementation.
+///
+/// Evicts the least recently accessed items when capacity is exceeded.
+/// Provides O(1) access and insertion performance.
 class LRUCache {
   final int _maxSize;
   final int _maxMemory;
@@ -139,7 +154,10 @@ class LRUCache {
   int get misses => _misses;
 }
 
-// LFU Cache
+/// Least Frequently Used cache implementation.
+///
+/// Evicts the least frequently accessed items when capacity is exceeded.
+/// Tracks access frequency for each cached item.
 class LFUCache {
   final int _maxSize;
   final int _maxMemory;
@@ -281,12 +299,23 @@ class LFUCache {
   int get misses => _misses;
 }
 
-// Multi-level cache
+/// Three-tier cache system with L1 (LRU), L2 (LRU), and L3 (LFU) levels.
+///
+/// Provides hierarchical caching with automatic promotion between levels.
+/// L1 is fastest but smallest, L3 is largest but uses frequency-based eviction.
 class MultiLevelCache {
   final LRUCache _l1Cache;
   final LRUCache _l2Cache;
   final LFUCache _l3Cache;
 
+  /// Creates a multi-level cache with configurable sizes and memory limits.
+  ///
+  /// [l1MaxSize] maximum number of entries in L1 cache.
+  /// [l1MaxMemory] maximum memory usage for L1 cache in bytes.
+  /// [l2MaxSize] maximum number of entries in L2 cache.
+  /// [l2MaxMemory] maximum memory usage for L2 cache in bytes.
+  /// [l3MaxSize] maximum number of entries in L3 cache.
+  /// [l3MaxMemory] maximum memory usage for L3 cache in bytes.
   MultiLevelCache({
     int l1MaxSize = 1000,
     int l1MaxMemory = 16 * 1024 * 1024,
@@ -298,7 +327,10 @@ class MultiLevelCache {
        _l2Cache = LRUCache(maxSize: l2MaxSize, maxMemory: l2MaxMemory),
        _l3Cache = LFUCache(maxSize: l3MaxSize, maxMemory: l3MaxMemory);
 
-  // Gets value from cache
+  /// Retrieves a value from the cache hierarchy.
+  ///
+  /// Searches L1, then L2, then L3. Found values are promoted to higher levels.
+  /// Returns null if the key is not found in any level.
   Uint8List? get(String key, {CacheLevel? preferredLevel}) {
     final l1Value = _l1Cache.get(key);
     if (l1Value != null) {
@@ -321,7 +353,11 @@ class MultiLevelCache {
     return null;
   }
 
-  // Puts value in cache
+  /// Stores a value in the specified cache level.
+  ///
+  /// [key] is the cache key.
+  /// [value] is the data to cache.
+  /// [level] specifies which cache level to use.
   void put(String key, Uint8List value, {CacheLevel level = CacheLevel.l1}) {
     switch (level) {
       case CacheLevel.l1:
@@ -337,7 +373,7 @@ class MultiLevelCache {
     }
   }
 
-  // Removes key from all levels
+  /// Removes a key from all cache levels.
   void remove(String key) {
     _l1Cache.remove(key);
     _l2Cache.remove(key);
@@ -351,7 +387,7 @@ class MultiLevelCache {
     _l3Cache.clear();
   }
 
-  // Gets cache statistics
+  /// Returns comprehensive statistics for all cache levels.
   CacheStats getStats() {
     final l1Stats = _l1Cache.getStats();
     final l2Stats = _l2Cache.getStats();

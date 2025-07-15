@@ -4,7 +4,7 @@ import '../indexing/index_manager.dart';
 import '../indexing/secondary_index.dart';
 import '../../reaxdb.dart';
 
-// Query operators
+/// Operators available for database queries.
 enum QueryOperator {
   equals,
   notEquals,
@@ -17,7 +17,7 @@ enum QueryOperator {
   contains,
 }
 
-// Query condition
+/// Represents a single condition in a database query.
 class QueryCondition {
   final String field;
   final QueryOperator operator;
@@ -30,7 +30,10 @@ class QueryCondition {
   });
 }
 
-// Query builder
+/// Fluent interface for building and executing database queries.
+///
+/// Provides methods for filtering, sorting, and limiting query results.
+/// Automatically uses secondary indexes when available for optimal performance.
 class QueryBuilder {
   final String collection;
   final ReaxDB _db;
@@ -41,6 +44,7 @@ class QueryBuilder {
   String? _orderByField;
   bool _orderDescending = false;
 
+  /// Creates a new query builder for the specified collection.
   QueryBuilder({
     required this.collection,
     required ReaxDB db,
@@ -48,7 +52,11 @@ class QueryBuilder {
   }) : _db = db,
        _indexManager = indexManager;
 
-  // Adds where condition
+  /// Adds a condition to the query.
+  ///
+  /// [field] is the document field to filter on.
+  /// [operator] specifies the comparison operation.
+  /// [value] is the value to compare against.
   QueryBuilder where(String field, QueryOperator operator, dynamic value) {
     _conditions.add(
       QueryCondition(field: field, operator: operator, value: value),
@@ -56,7 +64,7 @@ class QueryBuilder {
     return this;
   }
 
-  // Where equals
+  /// Adds an equality condition to the query.
   QueryBuilder whereEquals(String field, dynamic value) {
     return where(field, QueryOperator.equals, value);
   }
@@ -81,26 +89,29 @@ class QueryBuilder {
     return where(field, QueryOperator.inList, values);
   }
 
-  // Orders results
+  /// Specifies the field to sort results by.
+  ///
+  /// [field] is the field name to sort on.
+  /// [descending] determines sort order (default is ascending).
   QueryBuilder orderBy(String field, {bool descending = false}) {
     _orderByField = field;
     _orderDescending = descending;
     return this;
   }
 
-  // Limits results
+  /// Limits the number of results returned.
   QueryBuilder limit(int count) {
     _limitValue = count;
     return this;
   }
 
-  // Skips results
+  /// Skips the specified number of results.
   QueryBuilder offset(int count) {
     _offsetValue = count;
     return this;
   }
 
-  // Executes query
+  /// Executes the query and returns all matching documents.
   Future<List<Map<String, dynamic>>> find() async {
     Set<String> candidateIds = {};
     bool hasIndexedQuery = false;
@@ -159,13 +170,13 @@ class QueryBuilder {
     );
   }
 
-  // Finds one document
+  /// Executes the query and returns the first matching document.
   Future<Map<String, dynamic>?> findOne() async {
     final results = await limit(1).find();
     return results.isEmpty ? null : results.first;
   }
 
-  // Counts documents
+  /// Counts the number of documents matching the query.
   Future<int> count() async {
     final results = await find();
     return results.length;

@@ -11,6 +11,11 @@ import 'core/encryption/encryption_type.dart';
 import 'core/encryption/encryption_engine.dart';
 import 'domain/entities/database_entity.dart';
 
+/// High-performance hybrid database with multi-level caching and encryption support.
+///
+/// ReaxDB combines LSM Tree and B+ Tree storage engines for optimal performance
+/// across different workloads. Features include ACID transactions, secondary indexing,
+/// and real-time change streams.
 class ReaxDB {
   final String _name;
   final HybridStorageEngine _storageEngine;
@@ -39,6 +44,12 @@ class ReaxDB {
        _indexManager = indexManager,
        _encryptionEngine = encryptionEngine;
 
+  /// Opens a database instance with the specified configuration.
+  ///
+  /// [name] is the database name.
+  /// [config] specifies database configuration options.
+  /// [encryptionKey] is required when encryption is enabled.
+  /// [path] specifies the database file path.
   static Future<ReaxDB> open(
     String name, {
     DatabaseConfig? config,
@@ -98,6 +109,10 @@ class ReaxDB {
     return db;
   }
 
+  /// Stores a key-value pair in the database.
+  ///
+  /// [key] is the unique identifier for the value.
+  /// [value] can be any serializable Dart object.
   Future<void> put(String key, dynamic value) async {
     _ensureOpen();
 
@@ -129,6 +144,10 @@ class ReaxDB {
     _notifyPatternStreams(key, event);
   }
 
+  /// Retrieves a value by its key.
+  ///
+  /// Returns null if the key doesn't exist.
+  /// [T] specifies the expected return type.
   Future<T?> get<T>(String key) async {
     _ensureOpen();
 
@@ -149,6 +168,9 @@ class ReaxDB {
     return value;
   }
 
+  /// Deletes a key-value pair from the database.
+  ///
+  /// [key] is the identifier of the pair to delete.
   Future<void> delete(String key) async {
     _ensureOpen();
 
@@ -180,6 +202,10 @@ class ReaxDB {
     _notifyPatternStreams(key, event);
   }
 
+  /// Executes operations within an ACID transaction.
+  ///
+  /// [operation] is a function that receives a Transaction object
+  /// and returns the result of type [T].
   Future<T> transaction<T>(Future<T> Function(Transaction) operation) async {
     _ensureOpen();
 
@@ -188,6 +214,9 @@ class ReaxDB {
     });
   }
 
+  /// Creates a stream that emits change events for keys matching the pattern.
+  ///
+  /// [keyPattern] supports wildcards (e.g., "users:*").
   Stream<DatabaseChangeEvent> stream(String keyPattern) {
     if (!_patternStreams.containsKey(keyPattern)) {
       _patternStreams[keyPattern] =
@@ -196,13 +225,19 @@ class ReaxDB {
     return _patternStreams[keyPattern]!.stream;
   }
 
+  /// Stream of all database change events.
   Stream<DatabaseChangeEvent> get changeStream => _changeStream.stream;
 
+  /// Compacts the database to reclaim space and optimize performance.
   Future<void> compact() async {
     _ensureOpen();
     await _storageEngine.compact();
   }
 
+  /// Creates a secondary index on a field for faster queries.
+  ///
+  /// [collection] is the collection name.
+  /// [fieldName] is the field to index.
   Future<void> createIndex(String collection, String fieldName) async {
     _ensureOpen();
     await _indexManager.createIndex(collection, fieldName);
@@ -218,6 +253,9 @@ class ReaxDB {
     return _indexManager.listIndexes();
   }
 
+  /// Returns a query builder for the specified collection.
+  ///
+  /// [name] is the collection name.
   QueryBuilder collection(String name) {
     _ensureOpen();
     return QueryBuilder(
@@ -235,6 +273,7 @@ class ReaxDB {
     return this.collection(collection).whereEquals(field, value).find();
   }
 
+  /// Closes the database and releases all resources.
   Future<void> close() async {
     if (!_isOpen) return;
 
@@ -575,7 +614,9 @@ class ReaxDB {
   }
 }
 
-// Database configuration
+/// Configuration options for database initialization.
+///
+/// Provides settings for memory usage, caching, compression, and encryption.
 class DatabaseConfig {
   final int memtableSizeMB;
   final int pageSize;
@@ -603,6 +644,7 @@ class DatabaseConfig {
     this.encryptionType = EncryptionType.none,
   });
 
+  /// Creates a default configuration with recommended settings.
   factory DatabaseConfig.defaultConfig() => const DatabaseConfig(
     memtableSizeMB: 4,
     pageSize: 4096,
@@ -648,7 +690,9 @@ class DatabaseConfig {
   );
 }
 
-// Database change event
+/// Represents a change event in the database.
+///
+/// Contains information about what changed, when, and the affected data.
 class DatabaseChangeEvent {
   final ChangeType type;
   final String key;
@@ -663,9 +707,10 @@ class DatabaseChangeEvent {
   });
 }
 
+/// Types of database changes that can occur.
 enum ChangeType { put, delete, transaction }
 
-// Database exception
+/// Exception thrown when database operations fail.
 class DatabaseException implements Exception {
   final String message;
   const DatabaseException(this.message);
@@ -674,19 +719,24 @@ class DatabaseException implements Exception {
   String toString() => 'DatabaseException: $message';
 }
 
-// Wrapper for transactional operations
+/// Provides transactional operations with ACID guarantees.
+///
+/// All operations within a transaction are atomic - they either
+/// all succeed or all fail together.
 class Transaction {
   final ReaxDB _db;
   final tx_manager.Transaction _tx;
 
   Transaction._(this._db, this._tx);
 
+  /// Stores a key-value pair within the transaction.
   Future<void> put(String key, dynamic value) async {
     final serializedValue = _db.serializeValue(value);
     final finalValue = _db.encryptData(serializedValue);
     await _tx.put(key, finalValue);
   }
 
+  /// Retrieves a value by key within the transaction.
   Future<T?> get<T>(String key) async {
     final rawValue = await _tx.get(key);
     if (rawValue == null) return null;
@@ -695,6 +745,7 @@ class Transaction {
     return _db.deserializeValue<T>(decryptedValue);
   }
 
+  /// Deletes a key-value pair within the transaction.
   Future<void> delete(String key) async {
     await _tx.delete(key);
   }

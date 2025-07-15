@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -11,7 +10,10 @@ import 'package:pointycastle/export.dart'
 bool get _isWasmRuntime =>
     identical(0, 0.0) || const bool.fromEnvironment('dart.library.js_interop');
 
-// Encryption engine
+/// High-performance encryption engine supporting multiple algorithms.
+///
+/// Provides XOR and AES-256-GCM encryption with optimized implementations
+/// for different runtime environments.
 class EncryptionEngine {
   final EncryptionType _type;
   final String? _key;
@@ -21,6 +23,10 @@ class EncryptionEngine {
 
   GCMBlockCipher? _gcmCipher;
 
+  /// Creates an encryption engine with the specified type and key.
+  ///
+  /// [type] specifies the encryption algorithm to use.
+  /// [key] is required for encryption types that need a key.
   EncryptionEngine({required EncryptionType type, String? key})
     : _type = type,
       _key = key {
@@ -31,7 +37,7 @@ class EncryptionEngine {
     }
 
     if (_type == EncryptionType.aes256 && _isWasmRuntime) {
-      print(
+      debugPrint(
         'Warning: Running in WASM mode. AES-256 using fallback implementation with reduced security.',
       );
     }
@@ -44,7 +50,7 @@ class EncryptionEngine {
     }
   }
 
-  // Encrypts data
+  /// Encrypts the provided data using the configured algorithm.
   Uint8List encrypt(Uint8List data) {
     if (_type == EncryptionType.none) return data;
 
@@ -58,7 +64,7 @@ class EncryptionEngine {
     }
   }
 
-  // Decrypts data
+  /// Decrypts the provided data using the configured algorithm.
   Uint8List decrypt(Uint8List data) {
     if (_type == EncryptionType.none) return data;
 
@@ -72,7 +78,7 @@ class EncryptionEngine {
     }
   }
 
-  // Gets encryption metadata
+  /// Returns metadata about the encryption configuration.
   Map<String, dynamic> getMetadata() {
     return {
       'enabled': _type != EncryptionType.none,

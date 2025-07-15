@@ -235,7 +235,9 @@ class WriteAheadLog {
     if (_currentSink != null) {
       try {
         await _currentSink!.close();
-      } catch (e) {}
+      } catch (e) {
+        // Ignore close errors during shutdown
+      }
       _currentSink = null;
     }
   }
@@ -341,7 +343,9 @@ class WriteAheadLog {
     if (_currentSink != null) {
       try {
         await _currentSink!.close();
-      } catch (e) {}
+      } catch (e) {
+        // Ignore close errors during rotation
+      }
       _currentSink = null;
     }
     await _createNewLogFile();
