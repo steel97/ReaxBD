@@ -2,12 +2,12 @@
 enum EncryptionType {
   /// No encryption - fastest performance
   none,
-  
+
   /// XOR encryption - fast but not cryptographically secure
   /// Best for: Performance-critical apps with basic obfuscation needs
   /// Security: Low - vulnerable to frequency analysis
   xor,
-  
+
   /// AES-256-GCM encryption - cryptographically secure
   /// Best for: Production apps handling sensitive data
   /// Security: High - industry standard encryption
@@ -27,7 +27,7 @@ extension EncryptionTypeExtension on EncryptionType {
         return 'AES-256 (Secure)';
     }
   }
-  
+
   /// Security level description
   String get securityLevel {
     switch (this) {
@@ -39,7 +39,7 @@ extension EncryptionTypeExtension on EncryptionType {
         return 'High - Cryptographically secure';
     }
   }
-  
+
   /// Performance impact description
   String get performanceImpact {
     switch (this) {
@@ -51,7 +51,7 @@ extension EncryptionTypeExtension on EncryptionType {
         return 'Moderate (~15-25% overhead)';
     }
   }
-  
+
   /// Whether this encryption type requires a key
   bool get requiresKey {
     switch (this) {

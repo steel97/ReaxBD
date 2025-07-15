@@ -10,9 +10,16 @@ The fastest NoSQL database for Flutter. Store millions of records with 21,000+ w
 
 **Keywords:** Flutter database, NoSQL, offline-first, local storage, cache, encryption, ACID transactions, real-time sync, mobile database, embedded database, key-value store, document database, high performance, zero dependencies
 
-## 🆕 What's New in v1.1.1
+## 🆕 What's New in v1.2.0 (July 11, 2025)
+- **WASM Compatibility** - Full support for Dart's WASM runtime
+- **Enhanced Encryption API** - New `EncryptionType` enum for better control
+- **AES-256 Performance** - 40% faster AES encryption (138-180ms vs 237ms)
+- **WAL Recovery Fix** - Improved Write-Ahead Log reliability
+- **Automatic Fallbacks** - Smart encryption fallbacks for WASM environments
+
+### Previous v1.1.1
 - **Secondary Indexes** - Query any field with lightning speed
-- **Query Builder** - Powerful API for complex queries  
+- **Query Builder** - Powerful API for complex queries
 - **Range Queries** - Find documents between values
 - **Auto Index Updates** - Indexes stay in sync automatically
 
@@ -35,7 +42,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  reaxdb_dart: ^1.1.1
+  reaxdb_dart: ^1.2.0
 ```
 
 Then run:
@@ -63,6 +70,7 @@ final config = DatabaseConfig(
   l3CacheSize: 50000,
   compressionEnabled: true,
   syncWrites: false,
+  encryptionType: EncryptionType.aes256, // New encryption API
 );
 
 final db = await ReaxDB.open(
@@ -220,17 +228,52 @@ print('Total entries: ${dbInfo['database']['entries']}');
 
 ## Security
 
-ReaxDB provides built-in encryption support:
+ReaxDB provides built-in encryption support with multiple algorithms:
 
 ```dart
-// Enable encryption with a custom key
+// AES-256 encryption (most secure)
 final db = await ReaxDB.open(
   'secure_database',
+  config: DatabaseConfig.withAes256Encryption(),
   encryptionKey: 'your-256-bit-encryption-key',
+);
+
+// XOR encryption (faster, good for performance-critical apps)
+final db = await ReaxDB.open(
+  'fast_secure_database',
+  config: DatabaseConfig.withXorEncryption(),
+  encryptionKey: 'your-encryption-key',
+);
+
+// Custom encryption configuration
+final config = DatabaseConfig(
+  memtableSizeMB: 8,
+  pageSize: 4096,
+  l1CacheSize: 1000,
+  l2CacheSize: 5000,
+  l3CacheSize: 10000,
+  compressionEnabled: true,
+  syncWrites: true,
+  maxImmutableMemtables: 4,
+  cacheSize: 50,
+  enableCache: true,
+  encryptionType: EncryptionType.aes256, // none, xor, or aes256
+);
+
+final db = await ReaxDB.open(
+  'custom_secure_database',
+  config: config,
+  encryptionKey: 'your-encryption-key',
 );
 ```
 
-All data is encrypted at rest using AES encryption when an encryption key is provided.
+### Encryption Types
+
+- **`EncryptionType.none`**: No encryption (fastest)
+- **`EncryptionType.xor`**: XOR encryption (fast, moderate security)
+- **`EncryptionType.aes256`**: AES-256-GCM encryption (secure, slower)
+
+All data is encrypted at rest when an encryption type other than `none` is specified.
 
 ### WASM Compatibility
 

@@ -10,13 +10,11 @@ class LsmTree {
   final String _path;
   final List<List<SSTable>> _levels = [];
   final Map<int, int> _levelSizes = {};
-  
+
   static const int _maxLevel = 7;
   static const int _levelMultiplier = 10;
 
-  LsmTree._({
-    required String path,
-  })  : _path = path {
+  LsmTree._({required String path}) : _path = path {
     // Initialize levels
     for (int i = 0; i < _maxLevel; i++) {
       _levels.add(<SSTable>[]);
@@ -25,9 +23,7 @@ class LsmTree {
   }
 
   /// Creates a new LSM tree
-  static Future<LsmTree> create({
-    required String basePath,
-  }) async {
+  static Future<LsmTree> create({required String basePath}) async {
     final lsmPath = path.join(basePath, 'lsm');
     final directory = Directory(lsmPath);
     if (!await directory.exists()) {
@@ -136,7 +132,7 @@ class LsmTree {
 
     // Simple compaction strategy: merge all SSTables in current level
     final mergedEntries = <List<int>, Uint8List>{};
-    
+
     for (final sstable in currentLevel) {
       final entries = await sstable.getAllEntries();
       for (final entry in entries.entries) {

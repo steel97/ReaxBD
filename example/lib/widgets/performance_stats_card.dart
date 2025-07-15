@@ -12,12 +12,24 @@ class PerformanceStatsCard extends StatelessWidget {
     required this.latencies,
   });
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Column(
       children: [
         Icon(icon, color: color, size: 28),
         SizedBox(height: 8),
-        Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
         Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
     );
@@ -25,10 +37,11 @@ class PerformanceStatsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avgLatency = latencies.isEmpty 
-        ? '0μs' 
-        : '${(latencies.reduce((a, b) => a + b) / latencies.length).toStringAsFixed(1)}μs';
-    
+    final avgLatency =
+        latencies.isEmpty
+            ? '0μs'
+            : '${(latencies.reduce((a, b) => a + b) / latencies.length).toStringAsFixed(1)}μs';
+
     return Container(
       margin: EdgeInsets.all(16),
       child: Card(
@@ -37,13 +50,28 @@ class PerformanceStatsCard extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: _buildStatItem('Total Ops', totalOperations.toString(), Icons.trending_up, Colors.blue),
+                child: _buildStatItem(
+                  'Total Ops',
+                  totalOperations.toString(),
+                  Icons.trending_up,
+                  Colors.blue,
+                ),
               ),
               Expanded(
-                child: _buildStatItem('Success', successfulOperations.toString(), Icons.check_circle, Colors.green),
+                child: _buildStatItem(
+                  'Success',
+                  successfulOperations.toString(),
+                  Icons.check_circle,
+                  Colors.green,
+                ),
               ),
               Expanded(
-                child: _buildStatItem('Avg Latency', avgLatency, Icons.speed, Colors.orange),
+                child: _buildStatItem(
+                  'Avg Latency',
+                  avgLatency,
+                  Icons.speed,
+                  Colors.orange,
+                ),
               ),
             ],
           ),

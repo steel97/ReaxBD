@@ -4,11 +4,7 @@ class ConsoleWidget extends StatelessWidget {
   final List<String> logs;
   final VoidCallback onClear;
 
-  const ConsoleWidget({
-    super.key,
-    required this.logs,
-    required this.onClear,
-  });
+  const ConsoleWidget({super.key, required this.logs, required this.onClear});
 
   Color _getLogColor(String log) {
     if (log.contains('❌') || log.contains('Error') || log.contains('FAILED')) {
@@ -48,11 +44,14 @@ class ConsoleWidget extends StatelessWidget {
                 children: [
                   Icon(Icons.terminal, color: Colors.green[400], size: 20),
                   SizedBox(width: 8),
-                  Text('ReaxDB Console', style: TextStyle(
-                    fontSize: 16, 
-                    fontWeight: FontWeight.bold, 
-                    color: Colors.white
-                  )),
+                  Text(
+                    'ReaxDB Console',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                   Spacer(),
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -60,11 +59,14 @@ class ConsoleWidget extends StatelessWidget {
                       color: Colors.green[600],
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text('${logs.length} logs', style: TextStyle(
-                      color: Colors.white, 
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold
-                    )),
+                    child: Text(
+                      '${logs.length} logs',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                   SizedBox(width: 8),
                   IconButton(
@@ -84,32 +86,36 @@ class ConsoleWidget extends StatelessWidget {
                     bottomRight: Radius.circular(12),
                   ),
                 ),
-                child: logs.isEmpty 
-                    ? Center(
-                        child: Text(
-                          'No logs yet. Run some tests to see output.',
-                          style: TextStyle(color: Colors.grey[500], fontSize: 14),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: EdgeInsets.all(12),
-                        itemCount: logs.length,
-                        itemBuilder: (context, index) {
-                          final log = logs[index];
-                          return Container(
-                            margin: EdgeInsets.only(bottom: 2),
-                            child: Text(
-                              log,
-                              style: TextStyle(
-                                fontFamily: 'Courier',
-                                fontSize: 11,
-                                color: _getLogColor(log),
-                                height: 1.3,
-                              ),
+                child:
+                    logs.isEmpty
+                        ? Center(
+                          child: Text(
+                            'No logs yet. Run some tests to see output.',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 14,
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        )
+                        : ListView.builder(
+                          padding: EdgeInsets.all(12),
+                          itemCount: logs.length,
+                          itemBuilder: (context, index) {
+                            final log = logs[index];
+                            return Container(
+                              margin: EdgeInsets.only(bottom: 2),
+                              child: Text(
+                                log,
+                                style: TextStyle(
+                                  fontFamily: 'Courier',
+                                  fontSize: 11,
+                                  color: _getLogColor(log),
+                                  height: 1.3,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
               ),
             ),
           ],

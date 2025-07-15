@@ -20,9 +20,9 @@ class MemTable {
   void put(List<int> key, Uint8List value) {
     final keyString = _keyToStringOptimized(key);
     final oldValue = _data[keyString];
-    
+
     _data[keyString] = value;
-    
+
     // Update size efficiently
     if (oldValue != null) {
       _currentSize -= oldValue.length;
@@ -34,7 +34,7 @@ class MemTable {
   Uint8List? get(List<int> key) {
     final keyString = _keyToStringOptimized(key);
     final value = _data[keyString];
-    
+
     // Return null if value is null (deleted) or if it's a tombstone
     if (value == null || value.isEmpty) return null;
     return value;
@@ -44,10 +44,10 @@ class MemTable {
   void delete(List<int> key) {
     final keyString = _keyToStringOptimized(key);
     final oldValue = _data[keyString];
-    
+
     // Add tombstone (empty value)
     _data[keyString] = Uint8List(0);
-    
+
     // Update size
     if (oldValue != null) {
       _currentSize -= oldValue.length;
@@ -99,10 +99,10 @@ class MemTable {
 
   /// Gets current memory usage in bytes
   int get memoryUsage => _currentSize;
-  
+
   /// Gets current size in bytes (for compatibility)
   int get currentSize => _currentSize;
-  
+
   /// Gets maximum size in bytes
   int get maxSize => _maxSize;
 
@@ -124,10 +124,10 @@ class MemTable {
   /// Gets range of entries
   Map<List<int>, Uint8List> getRange(List<int>? startKey, List<int>? endKey) {
     final result = <List<int>, Uint8List>{};
-    
+
     final startKeyString = startKey != null ? _keyToString(startKey) : null;
     final endKeyString = endKey != null ? _keyToString(endKey) : null;
-    
+
     for (final entry in _data.entries) {
       if (startKeyString != null && entry.key.compareTo(startKeyString) < 0) {
         continue;
@@ -139,7 +139,7 @@ class MemTable {
         result[_stringToKey(entry.key)] = entry.value!;
       }
     }
-    
+
     return result;
   }
 
@@ -149,12 +149,12 @@ class MemTable {
     if (key.length <= 32) {
       return String.fromCharCodes(key);
     }
-    
+
     // For larger keys, use caching
     final keyHash = key.fold(0, (prev, element) => prev ^ element).toString();
     return _keyCache.putIfAbsent(keyHash, () => String.fromCharCodes(key));
   }
-  
+
   String _keyToString(List<int> key) {
     return String.fromCharCodes(key);
   }
@@ -162,14 +162,14 @@ class MemTable {
   List<int> _stringToKey(String keyString) {
     return keyString.codeUnits;
   }
-  
+
   /// Batch operations for better performance
   void putBatch(Map<List<int>, Uint8List> entries) {
     for (final entry in entries.entries) {
       put(entry.key, entry.value);
     }
   }
-  
+
   /// Get multiple keys at once
   Map<List<int>, Uint8List?> getBatch(List<List<int>> keys) {
     final result = <List<int>, Uint8List?>{};
@@ -178,18 +178,20 @@ class MemTable {
     }
     return result;
   }
-  
+
   /// Efficient prefix scan
   Map<List<int>, Uint8List> scanPrefix(List<int> prefix) {
     final result = <List<int>, Uint8List>{};
     final prefixString = _keyToString(prefix);
-    
+
     for (final entry in _data.entries) {
-      if (entry.key.startsWith(prefixString) && entry.value != null && entry.value!.isNotEmpty) {
+      if (entry.key.startsWith(prefixString) &&
+          entry.value != null &&
+          entry.value!.isNotEmpty) {
         result[_stringToKey(entry.key)] = entry.value!;
       }
     }
-    
+
     return result;
   }
 
@@ -203,7 +205,7 @@ class MemTable {
       'cacheHits': _keyCache.length,
     };
   }
-  
+
   @override
   String toString() {
     return 'MemTable(entries: ${_data.length}, size: ${(_currentSize / 1024).toStringAsFixed(1)}KB, util: ${(_currentSize / _maxSize * 100).toStringAsFixed(1)}%)';

@@ -16,14 +16,14 @@ void main() {
       if (await dir.exists()) {
         await dir.delete(recursive: true);
       }
-      
+
       // Create database
       db = await ReaxDB.open('benchmark_db', path: testPath);
     });
 
     tearDown(() async {
       await db.close();
-      
+
       // Clean up test database
       final dir = Directory(testPath);
       if (await dir.exists()) {
@@ -34,11 +34,11 @@ void main() {
     test('should measure write performance', () async {
       const iterations = 1000;
       final stopwatch = Stopwatch()..start();
-      
+
       for (int i = 0; i < iterations; i++) {
         await db.put('write_key_$i', 'value_$i');
       }
-      
+
       stopwatch.stop();
       final writeTime = stopwatch.elapsedMilliseconds;
       final writeThroughput = iterations / (writeTime / 1000.0);
@@ -46,8 +46,10 @@ void main() {
       debugPrint('Write Performance:');
       debugPrint('  Total time: ${writeTime}ms');
       debugPrint('  Throughput: ${writeThroughput.toStringAsFixed(2)} ops/sec');
-      debugPrint('  Avg latency: ${(writeTime / iterations).toStringAsFixed(3)}ms');
-      
+      debugPrint(
+        '  Avg latency: ${(writeTime / iterations).toStringAsFixed(3)}ms',
+      );
+
       // Performance assertions
       expect(writeTime, lessThan(5000)); // Should complete in < 5 seconds
       expect(writeThroughput, greaterThan(200)); // At least 200 ops/sec
@@ -58,14 +60,14 @@ void main() {
       for (int i = 0; i < 1000; i++) {
         await db.put('read_key_$i', 'value_$i');
       }
-      
+
       const iterations = 1000;
       final stopwatch = Stopwatch()..start();
-      
+
       for (int i = 0; i < iterations; i++) {
         await db.get<String>('read_key_$i');
       }
-      
+
       stopwatch.stop();
       final readTime = stopwatch.elapsedMilliseconds;
       final readThroughput = iterations / (readTime / 1000.0);
@@ -73,8 +75,10 @@ void main() {
       debugPrint('Read Performance:');
       debugPrint('  Total time: ${readTime}ms');
       debugPrint('  Throughput: ${readThroughput.toStringAsFixed(2)} ops/sec');
-      debugPrint('  Avg latency: ${(readTime / iterations).toStringAsFixed(3)}ms');
-      
+      debugPrint(
+        '  Avg latency: ${(readTime / iterations).toStringAsFixed(3)}ms',
+      );
+
       // Performance assertions
       expect(readTime, lessThan(2000)); // Reads should be faster
       expect(readThroughput, greaterThan(500)); // At least 500 ops/sec
@@ -85,12 +89,12 @@ void main() {
       int reads = 0;
       int writes = 0;
       int deletes = 0;
-      
+
       final stopwatch = Stopwatch()..start();
-      
+
       for (int i = 0; i < iterations; i++) {
         final operation = random.nextInt(3);
-        
+
         switch (operation) {
           case 0: // Write
             await db.put('mixed_key_${i % 500}', 'value_$i');
@@ -106,17 +110,21 @@ void main() {
             break;
         }
       }
-      
+
       stopwatch.stop();
       final totalTime = stopwatch.elapsedMilliseconds;
       final throughput = iterations / (totalTime / 1000.0);
 
       debugPrint('Mixed Workload Performance:');
       debugPrint('  Total time: ${totalTime}ms');
-      debugPrint('  Operations: $reads reads, $writes writes, $deletes deletes');
+      debugPrint(
+        '  Operations: $reads reads, $writes writes, $deletes deletes',
+      );
       debugPrint('  Throughput: ${throughput.toStringAsFixed(2)} ops/sec');
-      debugPrint('  Avg latency: ${(totalTime / iterations).toStringAsFixed(3)}ms');
-      
+      debugPrint(
+        '  Avg latency: ${(totalTime / iterations).toStringAsFixed(3)}ms',
+      );
+
       expect(totalTime, lessThan(5000));
       expect(throughput, greaterThan(200));
     });
@@ -124,9 +132,9 @@ void main() {
     test('should measure batch write performance', () async {
       const batchSize = 50;
       const batches = 10;
-      
+
       final stopwatch = Stopwatch()..start();
-      
+
       for (int batch = 0; batch < batches; batch++) {
         final batchData = <String, dynamic>{};
         for (int i = 0; i < batchSize; i++) {
@@ -136,7 +144,7 @@ void main() {
         // Small delay between batches to avoid conflicts
         await Future.delayed(Duration(milliseconds: 10));
       }
-      
+
       stopwatch.stop();
       final totalTime = stopwatch.elapsedMilliseconds;
       final totalOps = batchSize * batches;
@@ -146,8 +154,10 @@ void main() {
       debugPrint('  Total time: ${totalTime}ms');
       debugPrint('  Total operations: $totalOps');
       debugPrint('  Throughput: ${throughput.toStringAsFixed(2)} ops/sec');
-      debugPrint('  Avg batch time: ${(totalTime / batches).toStringAsFixed(2)}ms');
-      
+      debugPrint(
+        '  Avg batch time: ${(totalTime / batches).toStringAsFixed(2)}ms',
+      );
+
       expect(throughput, greaterThan(500)); // Adjusted for delays
     });
 
@@ -156,32 +166,36 @@ void main() {
       for (int i = 0; i < largeValue.length; i++) {
         largeValue[i] = random.nextInt(256);
       }
-      
+
       const iterations = 100;
-      
+
       // Write performance
       final writeStopwatch = Stopwatch()..start();
       for (int i = 0; i < iterations; i++) {
         await db.put('large_key_$i', largeValue);
       }
       writeStopwatch.stop();
-      
+
       // Read performance
       final readStopwatch = Stopwatch()..start();
       for (int i = 0; i < iterations; i++) {
         await db.get<List>('large_key_$i');
       }
       readStopwatch.stop();
-      
+
       final writeTime = writeStopwatch.elapsedMilliseconds;
       final readTime = readStopwatch.elapsedMilliseconds;
       final writeMBps = (iterations * 100 / 1024.0) / (writeTime / 1000.0);
       final readMBps = (iterations * 100 / 1024.0) / (readTime / 1000.0);
 
       debugPrint('Large Value Performance (100KB values):');
-      debugPrint('  Write time: ${writeTime}ms (${writeMBps.toStringAsFixed(2)} MB/s)');
-      debugPrint('  Read time: ${readTime}ms (${readMBps.toStringAsFixed(2)} MB/s)');
-      
+      debugPrint(
+        '  Write time: ${writeTime}ms (${writeMBps.toStringAsFixed(2)} MB/s)',
+      );
+      debugPrint(
+        '  Read time: ${readTime}ms (${readMBps.toStringAsFixed(2)} MB/s)',
+      );
+
       expect(writeMBps, greaterThan(10)); // At least 10 MB/s write
       expect(readMBps, greaterThan(20)); // At least 20 MB/s read
     });
@@ -191,17 +205,17 @@ void main() {
       const key = 'cache_test_key';
       const value = 'cache_test_value';
       await db.put(key, value);
-      
+
       // Warm up cache
       await db.get<String>(key);
-      
+
       const iterations = 10000;
       final stopwatch = Stopwatch()..start();
-      
+
       for (int i = 0; i < iterations; i++) {
         await db.get<String>(key);
       }
-      
+
       stopwatch.stop();
       final totalTime = stopwatch.elapsedMilliseconds;
       final avgLatency = totalTime / iterations;
@@ -211,7 +225,7 @@ void main() {
       debugPrint('  Total time: ${totalTime}ms');
       debugPrint('  Avg latency: ${avgLatency.toStringAsFixed(3)}ms');
       debugPrint('  Throughput: ${throughput.toStringAsFixed(2)} ops/sec');
-      
+
       expect(avgLatency, lessThan(0.5)); // Sub-millisecond for cache hits
       expect(throughput, greaterThan(2000)); // Very high for cache hits
     });
@@ -222,7 +236,7 @@ void main() {
       for (int i = 0; i < preCompactionOps; i++) {
         await db.put('compact_key_$i', 'compact_value_$i');
       }
-      
+
       // Measure performance before compaction
       final beforeStopwatch = Stopwatch()..start();
       for (int i = 0; i < 100; i++) {
@@ -230,13 +244,13 @@ void main() {
       }
       beforeStopwatch.stop();
       final beforeTime = beforeStopwatch.elapsedMilliseconds;
-      
+
       // Compact
       final compactStopwatch = Stopwatch()..start();
       await db.compact();
       compactStopwatch.stop();
       final compactTime = compactStopwatch.elapsedMilliseconds;
-      
+
       // Measure performance after compaction
       final afterStopwatch = Stopwatch()..start();
       for (int i = 0; i < 100; i++) {
@@ -249,66 +263,71 @@ void main() {
       debugPrint('  Compaction time: ${compactTime}ms');
       debugPrint('  Read time before: ${beforeTime}ms');
       debugPrint('  Read time after: ${afterTime}ms');
-      debugPrint('  Improvement: ${((beforeTime - afterTime) / beforeTime * 100).toStringAsFixed(1)}%');
-      
+      debugPrint(
+        '  Improvement: ${((beforeTime - afterTime) / beforeTime * 100).toStringAsFixed(1)}%',
+      );
+
       expect(compactTime, lessThan(5000)); // Compaction should be reasonable
     });
 
     test('should measure encryption overhead', () async {
       await db.close();
-      
+
       // Create encrypted database
       db = await ReaxDB.open(
         'benchmark_db',
         path: testPath,
         encryptionKey: 'benchmark_encryption_key_32bytes!',
       );
-      
+
       const iterations = 500;
       final encryptedStopwatch = Stopwatch()..start();
-      
+
       for (int i = 0; i < iterations; i++) {
         await db.put('encrypted_key_$i', 'encrypted_value_$i');
       }
-      
+
       for (int i = 0; i < iterations; i++) {
         await db.get<String>('encrypted_key_$i');
       }
-      
+
       encryptedStopwatch.stop();
       final encryptedTime = encryptedStopwatch.elapsedMilliseconds;
-      
+
       await db.close();
-      
+
       // Compare with non-encrypted
       db = await ReaxDB.open('benchmark_db', path: testPath);
-      
+
       final plainStopwatch = Stopwatch()..start();
-      
+
       for (int i = 0; i < iterations; i++) {
         await db.put('plain_key_$i', 'plain_value_$i');
       }
-      
+
       for (int i = 0; i < iterations; i++) {
         await db.get<String>('plain_key_$i');
       }
-      
+
       plainStopwatch.stop();
       final plainTime = plainStopwatch.elapsedMilliseconds;
-      
+
       final overhead = ((encryptedTime - plainTime) / plainTime * 100);
 
       debugPrint('Encryption Overhead:');
       debugPrint('  Plain time: ${plainTime}ms');
       debugPrint('  Encrypted time: ${encryptedTime}ms');
       debugPrint('  Overhead: ${overhead.toStringAsFixed(1)}%');
-      
-      expect(overhead, lessThanOrEqualTo(100)); // Less than or equal to 100% overhead
+
+      expect(
+        overhead,
+        lessThanOrEqualTo(100),
+      ); // Less than or equal to 100% overhead
     });
 
     test('should measure zero-copy serialization performance', () async {
       const iterations = 1000;
-      
+
       // Test different data types
       final testData = [
         'String value for testing',
@@ -318,18 +337,18 @@ void main() {
         List.generate(100, (i) => i),
         {'key': 'value', 'number': 123},
       ];
-      
+
       final stopwatch = Stopwatch()..start();
-      
+
       for (int i = 0; i < iterations; i++) {
         final data = testData[i % testData.length];
         await db.put('serialize_key_$i', data);
       }
-      
+
       for (int i = 0; i < iterations; i++) {
         await db.get('serialize_key_$i');
       }
-      
+
       stopwatch.stop();
       final totalTime = stopwatch.elapsedMilliseconds;
       final throughput = (iterations * 2) / (totalTime / 1000.0);
@@ -337,7 +356,7 @@ void main() {
       debugPrint('Zero-Copy Serialization Performance:');
       debugPrint('  Total time: ${totalTime}ms');
       debugPrint('  Throughput: ${throughput.toStringAsFixed(2)} ops/sec');
-      
+
       expect(throughput, greaterThan(1000)); // Fast serialization
     });
 
@@ -346,16 +365,16 @@ void main() {
       for (int i = 0; i < 1000; i++) {
         await db.put('stats_key_$i', 'stats_value_$i');
       }
-      
+
       // Measure statistics gathering
       final statsStopwatch = Stopwatch()..start();
       await db.getStatistics();
       statsStopwatch.stop();
-      
+
       final infoStopwatch = Stopwatch()..start();
       await db.getDatabaseInfo();
       infoStopwatch.stop();
-      
+
       final perfStopwatch = Stopwatch()..start();
       db.getPerformanceStats();
       perfStopwatch.stop();
@@ -363,8 +382,10 @@ void main() {
       debugPrint('Statistics Performance:');
       debugPrint('  getStatistics: ${statsStopwatch.elapsedMilliseconds}ms');
       debugPrint('  getDatabaseInfo: ${infoStopwatch.elapsedMilliseconds}ms');
-      debugPrint('  getPerformanceStats: ${perfStopwatch.elapsedMilliseconds}ms');
-      
+      debugPrint(
+        '  getPerformanceStats: ${perfStopwatch.elapsedMilliseconds}ms',
+      );
+
       // Should be fast operations
       expect(statsStopwatch.elapsedMilliseconds, lessThan(100));
       expect(infoStopwatch.elapsedMilliseconds, lessThan(100));

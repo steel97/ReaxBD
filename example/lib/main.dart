@@ -35,12 +35,16 @@ class ReaxDBExampleApp extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             elevation: 2,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
       home: DatabaseExampleScreen(),
@@ -61,10 +65,10 @@ class DatabaseExampleScreenState extends State<DatabaseExampleScreen> {
   bool _realTimeMode = false;
   int _realTimeCounter = 0;
   Timer? _realTimeTimer;
-  
+
   final TextEditingController _keyController = TextEditingController();
   final TextEditingController _valueController = TextEditingController();
-  
+
   // Performance metrics
   int _totalOperations = 0;
   int _successfulOperations = 0;
@@ -84,18 +88,17 @@ class DatabaseExampleScreenState extends State<DatabaseExampleScreen> {
 
     try {
       _addLog('Initializing ReaxDB...');
-      
+
       final directory = await getApplicationDocumentsDirectory();
       final dbPath = '${directory.path}/reaxdb_example';
-      
+
       _addLog('Database path: $dbPath');
-      
+
       await DatabaseService.initialize(dbPath);
-      
+
       _addLog('Database opened successfully!');
-      
+
       await _testBasicOperations();
-      
     } catch (e) {
       _addLog('Error initializing database: $e');
     } finally {
@@ -108,19 +111,18 @@ class DatabaseExampleScreenState extends State<DatabaseExampleScreen> {
   Future<void> _testBasicOperations() async {
     try {
       _addLog('\n--- Testing Basic Operations ---');
-      
+
       await DatabaseService.database!.put('test_key', {
-        'message': 'Hello ReaxDB!', 
-        'timestamp': DateTime.now().toIso8601String()
+        'message': 'Hello ReaxDB!',
+        'timestamp': DateTime.now().toIso8601String(),
       });
       _addLog('✓ Put operation successful');
-      
+
       final value = await DatabaseService.database!.get('test_key');
       _addLog('✓ Get operation successful: $value');
-      
+
       final info = await DatabaseService.database!.getDatabaseInfo();
       _addLog('✓ Database info: $info');
-      
     } catch (e) {
       _addLog('Error in basic operations: $e');
     }
@@ -178,7 +180,7 @@ class DatabaseExampleScreenState extends State<DatabaseExampleScreen> {
 
     try {
       _addLog('\n⚡ --- REAL-TIME PERFORMANCE TEST STARTED ---');
-      
+
       setState(() {
         _realTimeMode = true;
         _realTimeCounter = 0;
@@ -187,49 +189,54 @@ class DatabaseExampleScreenState extends State<DatabaseExampleScreen> {
         _successfulOperations = 0;
       });
 
-      _realTimeTimer = Timer.periodic(Duration(milliseconds: 100), (timer) async {
+      _realTimeTimer = Timer.periodic(Duration(milliseconds: 100), (
+        timer,
+      ) async {
         if (!_realTimeMode) {
           timer.cancel();
           return;
         }
 
         final stopwatch = Stopwatch()..start();
-        
+
         try {
           await DatabaseService.database!.put('realtime_$_realTimeCounter', {
             'sensor_id': _realTimeCounter % 10,
             'value': Random().nextDouble() * 100,
             'timestamp': DateTime.now().millisecondsSinceEpoch,
             'location': {
-              'lat': 40.7128 + Random().nextDouble(), 
-              'lng': -74.0060 + Random().nextDouble()
+              'lat': 40.7128 + Random().nextDouble(),
+              'lng': -74.0060 + Random().nextDouble(),
             },
           });
-          
+
           stopwatch.stop();
           _latencies.add(stopwatch.elapsedMicroseconds);
           _successfulOperations++;
-          
+
           if (_realTimeCounter % 50 == 0) {
-            final avgLatency = _latencies.isEmpty ? 0 : 
-                _latencies.reduce((a, b) => a + b) / _latencies.length;
-            final opsPerSec = _successfulOperations / ((_realTimeCounter + 1) * 0.1);
-            
-            _addLog('⚡ Real-time: ${_realTimeCounter + 1} ops, ${opsPerSec.toStringAsFixed(1)} ops/sec, ${avgLatency.toStringAsFixed(1)}μs avg');
+            final avgLatency =
+                _latencies.isEmpty
+                    ? 0
+                    : _latencies.reduce((a, b) => a + b) / _latencies.length;
+            final opsPerSec =
+                _successfulOperations / ((_realTimeCounter + 1) * 0.1);
+
+            _addLog(
+              '⚡ Real-time: ${_realTimeCounter + 1} ops, ${opsPerSec.toStringAsFixed(1)} ops/sec, ${avgLatency.toStringAsFixed(1)}μs avg',
+            );
           }
-          
         } catch (e) {
           _addLog('❌ Real-time error at operation $_realTimeCounter: $e');
         }
-        
+
         _totalOperations++;
         _realTimeCounter++;
-        
+
         if (_realTimeCounter >= 1000) {
           _stopRealTimeTest();
         }
       });
-      
     } catch (e) {
       _addLog('❌ Real-time test error: $e');
     }
@@ -237,23 +244,29 @@ class DatabaseExampleScreenState extends State<DatabaseExampleScreen> {
 
   void _stopRealTimeTest() {
     if (!_realTimeMode) return;
-    
+
     _realTimeTimer?.cancel();
     setState(() {
       _realTimeMode = false;
     });
-    
-    final avgLatency = _latencies.isEmpty ? 0 : 
-        _latencies.reduce((a, b) => a + b) / _latencies.length;
+
+    final avgLatency =
+        _latencies.isEmpty
+            ? 0
+            : _latencies.reduce((a, b) => a + b) / _latencies.length;
     final totalTime = _totalOperations * 0.1;
     final opsPerSec = _successfulOperations / totalTime;
-    
+
     _addLog('\n📊 REAL-TIME TEST RESULTS:');
     _addLog('   Operations: $_successfulOperations/$_totalOperations');
-    _addLog('   Success rate: ${(_successfulOperations / _totalOperations * 100).toStringAsFixed(2)}%');
+    _addLog(
+      '   Success rate: ${(_successfulOperations / _totalOperations * 100).toStringAsFixed(2)}%',
+    );
     _addLog('   Throughput: ${opsPerSec.toStringAsFixed(2)} ops/sec');
     _addLog('   Avg latency: ${avgLatency.toStringAsFixed(2)}μs');
-    _addLog('   Max latency: ${_latencies.isEmpty ? 0 : _latencies.reduce((a, b) => a > b ? a : b)}μs');
+    _addLog(
+      '   Max latency: ${_latencies.isEmpty ? 0 : _latencies.reduce((a, b) => a > b ? a : b)}μs',
+    );
   }
 
   void _addLog(String message) {
@@ -299,8 +312,17 @@ class DatabaseExampleScreenState extends State<DatabaseExampleScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('ReaxDB Demo', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                Text('High-Performance NoSQL Database', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.9))),
+                Text(
+                  'ReaxDB Demo',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'High-Performance NoSQL Database',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
               ],
             ),
           ],
@@ -319,127 +341,159 @@ class DatabaseExampleScreenState extends State<DatabaseExampleScreen> {
                 children: [
                   Icon(Icons.circle, size: 8, color: Colors.white),
                   SizedBox(width: 4),
-                  Text('LIVE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  Text(
+                    'LIVE',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
             ),
         ],
       ),
-      body: _isLoading
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(strokeWidth: 3),
-                  SizedBox(height: 16),
-                  Text('Initializing ReaxDB...', style: TextStyle(fontSize: 16, color: Colors.grey[600])),
-                ],
-              ),
-            )
-          : SingleChildScrollView(
-              child: Column(
-                children: [
-                  // Performance Stats
-                  PerformanceStatsCard(
-                    totalOperations: _totalOperations,
-                    successfulOperations: _successfulOperations,
-                    latencies: _latencies,
-                  ),
-                  
-                  // Control Panel with Demo Tests
-                  Container(
-                    margin: EdgeInsets.symmetric(horizontal: 16),
-                    child: Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.security, color: Colors.red[700], size: 20),
-                                SizedBox(width: 8),
-                                Text('Database Demonstrations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                            SizedBox(height: 16),
-                            
-                            Row(
-                              children: [
-                                Expanded(child: ActionButton(
-                                  text: 'Security Tests',
-                                  onPressed: _runSecurityTests,
-                                  color: Colors.red[700]!,
-                                  icon: Icons.shield,
-                                )),
-                                SizedBox(width: 8),
-                                Expanded(child: ActionButton(
-                                  text: _realTimeMode ? 'Stop Real-Time' : 'Real-Time Test',
-                                  onPressed: _startRealTimeTest,
-                                  color: _realTimeMode ? Colors.orange[700]! : Colors.green[700]!,
-                                  icon: _realTimeMode ? Icons.stop : Icons.speed,
-                                  isActive: _realTimeMode,
-                                )),
-                              ],
-                            ),
-                            SizedBox(height: 12),
-                            
-                            Row(
-                              children: [
-                                Expanded(child: ActionButton(
-                                  text: 'Basic Stress',
-                                  onPressed: _runConcurrencyTest,
-                                  color: Colors.purple[700]!,
-                                  icon: Icons.fitness_center,
-                                )),
-                                SizedBox(width: 8),
-                                Expanded(child: ActionButton(
-                                  text: 'Optimized 🚀',
-                                  onPressed: _runOptimizedConcurrencyTest,
-                                  color: Colors.green[700]!,
-                                  icon: Icons.rocket_launch,
-                                )),
-                              ],
-                            ),
-                            SizedBox(height: 12),
-                            
-                            SizedBox(
-                              width: double.infinity,
-                              child: ActionButton(
-                                text: '💀 EXTREME STRESS (10K ops)',
-                                onPressed: _runExtremeStressTest,
-                                color: Colors.red[900]!,
-                                icon: Icons.warning,
+      body:
+          _isLoading
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(strokeWidth: 3),
+                    SizedBox(height: 16),
+                    Text(
+                      'Initializing ReaxDB...',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              )
+              : SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Performance Stats
+                    PerformanceStatsCard(
+                      totalOperations: _totalOperations,
+                      successfulOperations: _successfulOperations,
+                      latencies: _latencies,
+                    ),
+
+                    // Control Panel with Demo Tests
+                    Container(
+                      margin: EdgeInsets.symmetric(horizontal: 16),
+                      child: Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.security,
+                                    color: Colors.red[700],
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Database Demonstrations',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            SizedBox(height: 12),
-                            
-                            SizedBox(
-                              width: double.infinity,
-                              child: ActionButton(
-                                text: '🔍 Secondary Indexes',
-                                onPressed: () async {
-                                  final logs = await DatabaseService.runSecondaryIndexTest();
-                                  logs.forEach(_addLog);
-                                },
-                                color: Colors.indigo[700]!,
-                                icon: Icons.search,
+                              SizedBox(height: 16),
+
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ActionButton(
+                                      text: 'Security Tests',
+                                      onPressed: _runSecurityTests,
+                                      color: Colors.red[700]!,
+                                      icon: Icons.shield,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: ActionButton(
+                                      text:
+                                          _realTimeMode
+                                              ? 'Stop Real-Time'
+                                              : 'Real-Time Test',
+                                      onPressed: _startRealTimeTest,
+                                      color:
+                                          _realTimeMode
+                                              ? Colors.orange[700]!
+                                              : Colors.green[700]!,
+                                      icon:
+                                          _realTimeMode
+                                              ? Icons.stop
+                                              : Icons.speed,
+                                      isActive: _realTimeMode,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
+                              SizedBox(height: 12),
+
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ActionButton(
+                                      text: 'Basic Stress',
+                                      onPressed: _runConcurrencyTest,
+                                      color: Colors.purple[700]!,
+                                      icon: Icons.fitness_center,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: ActionButton(
+                                      text: 'Optimized 🚀',
+                                      onPressed: _runOptimizedConcurrencyTest,
+                                      color: Colors.green[700]!,
+                                      icon: Icons.rocket_launch,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 12),
+
+                              SizedBox(
+                                width: double.infinity,
+                                child: ActionButton(
+                                  text: '💀 EXTREME STRESS (10K ops)',
+                                  onPressed: _runExtremeStressTest,
+                                  color: Colors.red[900]!,
+                                  icon: Icons.warning,
+                                ),
+                              ),
+                              SizedBox(height: 12),
+
+                              SizedBox(
+                                width: double.infinity,
+                                child: ActionButton(
+                                  text: '🔍 Secondary Indexes',
+                                  onPressed: () async {
+                                    final logs =
+                                        await DatabaseService.runSecondaryIndexTest();
+                                    logs.forEach(_addLog);
+                                  },
+                                  color: Colors.indigo[700]!,
+                                  icon: Icons.search,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  
-                  // Console Output
-                  ConsoleWidget(
-                    logs: _logs,
-                    onClear: _clearLogs,
-                  ),
-                ],
+
+                    // Console Output
+                    ConsoleWidget(logs: _logs, onClear: _clearLogs),
+                  ],
+                ),
               ),
-            ),
     );
   }
 }

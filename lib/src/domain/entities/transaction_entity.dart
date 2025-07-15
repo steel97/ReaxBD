@@ -41,13 +41,7 @@ class TransactionEntity {
 }
 
 /// Estados de una transacción
-enum TransactionStatus {
-  active,
-  preparing,
-  committed,
-  aborted,
-  rolledBack,
-}
+enum TransactionStatus { active, preparing, committed, aborted, rolledBack }
 
 /// Niveles de aislamiento de transacciones
 class IsolationLevel {
@@ -93,12 +87,7 @@ class TransactionOperation {
 }
 
 /// Tipos de operaciones en transacciones
-enum OperationType {
-  read,
-  write,
-  delete,
-  create,
-}
+enum OperationType { read, write, delete, create }
 
 /// Conflicto entre transacciones
 class TransactionConflict {
@@ -123,11 +112,7 @@ class TransactionConflict {
 }
 
 /// Tipos de conflictos entre transacciones
-enum ConflictType {
-  writeWrite,
-  readWrite,
-  writeRead,
-}
+enum ConflictType { writeWrite, readWrite, writeRead }
 
 /// Punto de guardado dentro de una transacción
 class Savepoint {
