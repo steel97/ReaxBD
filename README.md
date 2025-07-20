@@ -10,13 +10,16 @@ The fastest NoSQL database for Flutter. Store millions of records with 21,000+ w
 
 **Keywords:** Flutter database, NoSQL, offline-first, local storage, cache, encryption, ACID transactions, real-time sync, mobile database, embedded database, key-value store, document database, high performance, zero dependencies
 
-## 🆕 What's New in v1.2.2 (July 15, 2025)
+## 🆕 What's New in v1.2.3 (July 20, 2025)
+- **CRITICAL FIX** - Fixed data persistence between application sessions
+- **WAL Recovery** - Data now properly restores when reopening database
+- **Stability** - Fixed async operations and operation ordering
+- **Thanks** - Special thanks to Ray Caruso for reporting the persistence bug
+
+### Previous v1.2.2 (July 15, 2025)
 - **Bug Fixes** - Fixed pub.dev issues
 - **Documentation** - Added API docs
 - **Code Quality** - Better error handling
-
-### Previous v1.2.1 (July 15, 2025)
-- **Improvements** - Code fixes and optimizations
 
 ### Previous v1.2.0 (July 11, 2025)
 - **WASM Compatibility** - Full support for Dart's WASM runtime
@@ -43,6 +46,7 @@ The fastest NoSQL database for Flutter. Store millions of records with 21,000+ w
 - **Concurrent Operations**: Connection pooling and batch processing
 - **Mobile Optimized**: Hybrid storage engine designed for mobile devices
 - **Real-time Streams**: Live data change notifications with pattern matching
+- **Data Persistence**: Reliable WAL-based persistence across app sessions
 
 ## Installation
 
@@ -50,7 +54,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  reaxdb_dart: ^1.2.2
+  reaxdb_dart: ^1.2.3
 ```
 
 Then run:
@@ -104,6 +108,14 @@ print(user); // {name: John Doe, email: john@example.com, age: 30}
 
 // Delete data
 await db.delete('user:123');
+
+// Close database
+await db.close();
+
+// Data persists between sessions (v1.2.3+)
+final db2 = await ReaxDB.open('my_database');
+final persistedUser = await db2.get('user:123');
+// persistedUser is null because it was deleted
 ```
 
 ### Secondary Indexes (NEW!)

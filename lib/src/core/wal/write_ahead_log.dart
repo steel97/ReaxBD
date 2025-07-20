@@ -206,6 +206,9 @@ class WriteAheadLog {
       entries.addAll(fileEntries);
     }
 
+    // Sort entries by sequence number to maintain order
+    entries.sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+
     return entries;
   }
 

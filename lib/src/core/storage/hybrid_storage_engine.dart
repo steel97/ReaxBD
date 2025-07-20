@@ -61,6 +61,20 @@ class HybridStorageEngine {
     final btree = await BTree.create(basePath: path);
     final wal = await WriteAheadLog.create(basePath: path);
 
+    // Recover data from WAL
+    final walEntries = await wal.recover();
+    for (final entry in walEntries) {
+      if (entry.type == WALEntryType.put) {
+        memtable.put(entry.key, entry.value!);
+        if (_shouldUseBTreeStatic(entry.key)) {
+          await btree.put(entry.key, entry.value!);
+        }
+      } else if (entry.type == WALEntryType.delete) {
+        memtable.delete(entry.key);
+        await btree.delete(entry.key);
+      }
+    }
+
     final engine = HybridStorageEngine._(
       path: path,
       config: config,
@@ -72,6 +86,12 @@ class HybridStorageEngine {
 
     engine._isOpen = true;
     return engine;
+  }
+
+  // Static helper for BTree check during recovery
+  static bool _shouldUseBTreeStatic(List<int> key) {
+    final keyString = String.fromCharCodes(key);
+    return keyString.contains(':') || keyString.length < 20;
   }
 
   // Saves key-value
@@ -151,8 +171,13 @@ class HybridStorageEngine {
   Future<Uint8List?> _getInternal(List<int> key) async {
     _ensureOpen();
 
-    final memtableValue = _memtable.get(key);
-    if (memtableValue != null) return memtableValue;
+    // Check memtable first - it might have a tombstone
+    final keyString = String.fromCharCodes(key);
+    if (_memtable.data.containsKey(keyString)) {
+      final value = _memtable.data[keyString];
+      // If it's a tombstone (null value), return null
+      return value;
+    }
 
     for (final immutableMemtable in _immutableMemtables.reversed) {
       final value = immutableMemtable.get(key);
@@ -174,6 +199,11 @@ class HybridStorageEngine {
 
   Future<void> _deleteInternal(List<int> key) async {
     _ensureOpen();
+
+    // Flush any pending writes first to maintain order
+    if (_writeBuffer.isNotEmpty) {
+      await _flushWriteBuffer();
+    }
 
     await _wal.appendTombstone(key);
 
@@ -338,7 +368,7 @@ class HybridStorageEngine {
 
     try {
       for (final entry in entriesToFlush) {
-        _wal.append(entry.key, entry.value);
+        await _wal.append(entry.key, entry.value);
       }
     } finally {
       _isFlushingBuffer = false;

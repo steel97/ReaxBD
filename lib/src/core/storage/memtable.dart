@@ -4,7 +4,7 @@ import 'dart:collection';
 /// In-memory table for fast writes before flushing to disk - OPTIMIZED
 class MemTable {
   final int _maxSize;
-  final SplayTreeMap<String, Uint8List?> _data = SplayTreeMap();
+  final SplayTreeMap<String, Uint8List?> data = SplayTreeMap();
   final Map<String, String> _keyCache = {}; // Cache for key conversions
   int _currentSize = 0;
 
@@ -12,16 +12,16 @@ class MemTable {
 
   /// Creates a copy of another memtable
   MemTable.from(MemTable other) : _maxSize = other._maxSize {
-    _data.addAll(other._data);
+    data.addAll(other.data);
     _currentSize = other._currentSize;
   }
 
   /// Puts a key-value pair - OPTIMIZED
   void put(List<int> key, Uint8List value) {
     final keyString = _keyToStringOptimized(key);
-    final oldValue = _data[keyString];
+    final oldValue = data[keyString];
 
-    _data[keyString] = value;
+    data[keyString] = value;
 
     // Update size efficiently
     if (oldValue != null) {
@@ -33,39 +33,37 @@ class MemTable {
   /// Gets a value by key - OPTIMIZED for speed
   Uint8List? get(List<int> key) {
     final keyString = _keyToStringOptimized(key);
-    final value = _data[keyString];
+    final value = data[keyString];
 
-    // Return null if value is null (deleted) or if it's a tombstone
-    if (value == null || value.isEmpty) return null;
+    // Return null if value is null (deleted)
     return value;
   }
 
   /// Deletes a key (adds tombstone) - OPTIMIZED
   void delete(List<int> key) {
     final keyString = _keyToStringOptimized(key);
-    final oldValue = _data[keyString];
+    final oldValue = data[keyString];
 
-    // Add tombstone (empty value)
-    _data[keyString] = Uint8List(0);
+    // Add tombstone (null value)
+    data[keyString] = null;
 
     // Update size
     if (oldValue != null) {
       _currentSize -= oldValue.length;
     }
-    _currentSize += keyString.length;
   }
 
   /// Checks if key exists - OPTIMIZED
   bool containsKey(List<int> key) {
     final keyString = _keyToStringOptimized(key);
-    return _data.containsKey(keyString) && _data[keyString]!.isNotEmpty;
+    return data.containsKey(keyString) && data[keyString] != null;
   }
 
   /// Gets all entries as a map
   Map<List<int>, Uint8List> get entries {
     final result = <List<int>, Uint8List>{};
-    for (final entry in _data.entries) {
-      if (entry.value != null && entry.value!.isNotEmpty) {
+    for (final entry in data.entries) {
+      if (entry.value != null) {
         result[_stringToKey(entry.key)] = entry.value!;
       }
     }
@@ -75,7 +73,7 @@ class MemTable {
   /// Gets all entries including tombstones
   Map<List<int>, Uint8List?> get allEntries {
     final result = <List<int>, Uint8List?>{};
-    for (final entry in _data.entries) {
+    for (final entry in data.entries) {
       result[_stringToKey(entry.key)] = entry.value;
     }
     return result;
@@ -83,7 +81,7 @@ class MemTable {
 
   /// Clears the memtable - OPTIMIZED
   void clear() {
-    _data.clear();
+    data.clear();
     _keyCache.clear();
     _currentSize = 0;
   }
@@ -92,10 +90,10 @@ class MemTable {
   bool get isFull => _currentSize >= _maxSize;
 
   /// Checks if memtable is empty
-  bool get isEmpty => _data.isEmpty;
+  bool get isEmpty => data.isEmpty;
 
   /// Gets current size in bytes
-  int get size => _data.length;
+  int get size => data.length;
 
   /// Gets current memory usage in bytes
   int get memoryUsage => _currentSize;
@@ -107,18 +105,18 @@ class MemTable {
   int get maxSize => _maxSize;
 
   /// Gets keys in sorted order
-  Iterable<List<int>> get keys => _data.keys.map(_stringToKey);
+  Iterable<List<int>> get keys => data.keys.map(_stringToKey);
 
   /// Gets first key
   List<int>? get firstKey {
-    if (_data.isEmpty) return null;
-    return _stringToKey(_data.firstKey()!);
+    if (data.isEmpty) return null;
+    return _stringToKey(data.firstKey()!);
   }
 
   /// Gets last key
   List<int>? get lastKey {
-    if (_data.isEmpty) return null;
-    return _stringToKey(_data.lastKey()!);
+    if (data.isEmpty) return null;
+    return _stringToKey(data.lastKey()!);
   }
 
   /// Gets range of entries
@@ -128,14 +126,14 @@ class MemTable {
     final startKeyString = startKey != null ? _keyToString(startKey) : null;
     final endKeyString = endKey != null ? _keyToString(endKey) : null;
 
-    for (final entry in _data.entries) {
+    for (final entry in data.entries) {
       if (startKeyString != null && entry.key.compareTo(startKeyString) < 0) {
         continue;
       }
       if (endKeyString != null && entry.key.compareTo(endKeyString) >= 0) {
         break;
       }
-      if (entry.value != null && entry.value!.isNotEmpty) {
+      if (entry.value != null) {
         result[_stringToKey(entry.key)] = entry.value!;
       }
     }
@@ -184,10 +182,9 @@ class MemTable {
     final result = <List<int>, Uint8List>{};
     final prefixString = _keyToString(prefix);
 
-    for (final entry in _data.entries) {
+    for (final entry in data.entries) {
       if (entry.key.startsWith(prefixString) &&
-          entry.value != null &&
-          entry.value!.isNotEmpty) {
+          entry.value != null) {
         result[_stringToKey(entry.key)] = entry.value!;
       }
     }
@@ -198,7 +195,7 @@ class MemTable {
   /// Get cache statistics
   Map<String, dynamic> getStats() {
     return {
-      'entries': _data.length,
+      'entries': data.length,
       'memoryUsage': _currentSize,
       'maxSize': _maxSize,
       'utilizationPercent': (_currentSize / _maxSize * 100).toStringAsFixed(1),
@@ -208,6 +205,6 @@ class MemTable {
 
   @override
   String toString() {
-    return 'MemTable(entries: ${_data.length}, size: ${(_currentSize / 1024).toStringAsFixed(1)}KB, util: ${(_currentSize / _maxSize * 100).toStringAsFixed(1)}%)';
+    return 'MemTable(entries: ${data.length}, size: ${(_currentSize / 1024).toStringAsFixed(1)}KB, util: ${(_currentSize / _maxSize * 100).toStringAsFixed(1)}%)';
   }
 }

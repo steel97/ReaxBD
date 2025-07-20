@@ -131,7 +131,7 @@ void main() {
                     String.fromCharCodes(e.key) == String.fromCharCodes(key2),
               )
               .value;
-      expect(key2Value!.isEmpty, isTrue); // Tombstone
+      expect(key2Value, isNull); // Tombstone
     });
 
     test('should get range of entries', () {
