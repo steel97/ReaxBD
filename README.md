@@ -161,9 +161,8 @@ final users = await db.getBatch(['user:1', 'user:2', 'user:3']);
 ### Transactions
 
 ```dart
-final txn = await db.beginTransaction();
-
-try {
+// Transactions automatically commit on success or rollback on error
+await db.transaction((txn) async {
   await txn.put('account:1', {'balance': 1000});
   await txn.put('account:2', {'balance': 500});
   
@@ -174,23 +173,21 @@ try {
   await txn.put('account:1', {'balance': account1['balance'] - 100});
   await txn.put('account:2', {'balance': account2['balance'] + 100});
   
-  await txn.commit();
-} catch (e) {
-  await txn.rollback();
-  rethrow;
-}
+  // No need to manually commit - happens automatically
+  // If an exception is thrown, automatic rollback occurs
+});
 ```
 
 ### Real-time Data Streams
 
 ```dart
 // Listen to all changes
-final subscription = db.watchAll().listen((event) {
+final subscription = db.changeStream.listen((event) {
   print('${event.type}: ${event.key} = ${event.value}');
 });
 
 // Listen to specific patterns
-final userStream = db.watchPattern('user:*').listen((event) {
+final userStream = db.stream('user:*').listen((event) {
   print('User updated: ${event.key}');
 });
 
@@ -218,8 +215,10 @@ final stats = db.getPerformanceStats();
 print('Cache hit ratio: ${stats['cache']['total_hit_ratio']}');
 
 final dbInfo = await db.getDatabaseInfo();
-print('Database size: ${dbInfo['database']['size']} bytes');
-print('Total entries: ${dbInfo['database']['entries']}');
+print('Database name: ${dbInfo.name}');
+print('Database size: ${dbInfo.sizeBytes} bytes');
+print('Total entries: ${dbInfo.entryCount}');
+print('Is encrypted: ${dbInfo.isEncrypted}');
 ```
 
 ## Configuration Options
