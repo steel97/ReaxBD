@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'secondary_index.dart';
 import '../storage/hybrid_storage_engine.dart';
+import '../logging/logger.dart';
 
 // Index manager
 class IndexManager {
@@ -149,7 +150,7 @@ class IndexManager {
 
             _indexes['$collection.$fieldName'] = index;
           } catch (e) {
-            print('Failed to load index $collection.$fieldName: $e');
+            logger.error('Failed to load index $collection.$fieldName', error: e);
           }
         }
       }
@@ -170,11 +171,11 @@ class IndexManager {
     SecondaryIndex index,
   ) async {
     try {
-      print('Rebuilding index for $collection.$fieldName...');
+      logger.info('Rebuilding index for $collection.$fieldName...');
 
-      print('Index rebuild skipped');
+      logger.debug('Index rebuild skipped');
     } catch (e) {
-      print('Failed to rebuild index for $collection.$fieldName: $e');
+      logger.error('Failed to rebuild index for $collection.$fieldName', error: e);
     }
   }
 }

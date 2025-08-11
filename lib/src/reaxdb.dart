@@ -5,10 +5,13 @@ import 'dart:convert';
 import 'core/storage/hybrid_storage_engine.dart';
 import 'core/cache/multi_level_cache.dart';
 import 'core/transactions/transaction_manager.dart' as tx_manager;
+import 'core/transactions/enhanced_transaction.dart';
 import 'core/indexing/index_manager.dart';
 import 'core/query/query_builder.dart';
 import 'core/encryption/encryption_type.dart';
 import 'core/encryption/encryption_engine.dart';
+import 'core/logging/logger.dart';
+import 'core/streams/reactive_stream.dart';
 import 'domain/entities/database_entity.dart';
 
 /// High-performance hybrid database with multi-level caching and encryption support.
@@ -23,6 +26,7 @@ class ReaxDB {
   final tx_manager.TransactionManager _transactionManager;
   final IndexManager _indexManager;
   final EncryptionEngine? _encryptionEngine;
+  final EnhancedTransactionManager _enhancedTxManager = EnhancedTransactionManager();
 
   final StreamController<DatabaseChangeEvent> _changeStream =
       StreamController<DatabaseChangeEvent>.broadcast();
@@ -116,6 +120,8 @@ class ReaxDB {
   Future<void> put(String key, dynamic value) async {
     _ensureOpen();
 
+    logger.debug('Putting key: $key', metadata: {'keyLength': key.length});
+
     final serializedValue = _serializeValue(value);
     final finalValue =
         _encryptionEngine?.encrypt(serializedValue) ?? serializedValue;
@@ -151,8 +157,11 @@ class ReaxDB {
   Future<T?> get<T>(String key) async {
     _ensureOpen();
 
+    logger.debug('Getting key: $key');
+
     final cached = _cache.get(key);
     if (cached != null) {
+      logger.debug('Cache hit for key: $key');
       final decryptedCached = _encryptionEngine?.decrypt(cached) ?? cached;
       return _deserializeValue<T>(decryptedCached);
     }
@@ -228,6 +237,32 @@ class ReaxDB {
   /// Stream of all database change events.
   Stream<DatabaseChangeEvent> get changeStream => _changeStream.stream;
 
+  /// Reactive stream of all database change events.
+  ReactiveStream watch() => ReactiveStream(_changeStream.stream);
+
+  /// Watch changes for keys matching a pattern.
+  ReactiveStream watchPattern(String pattern) {
+    if (!_patternStreams.containsKey(pattern)) {
+      _patternStreams[pattern] = StreamController<DatabaseChangeEvent>.broadcast();
+    }
+    return ReactiveStream(_patternStreams[pattern]!.stream);
+  }
+
+  /// Watch changes for a specific key.
+  ReactiveStream watchKey(String key) {
+    return watch().where((event) => event.key == key);
+  }
+
+  /// Watch changes for keys with a specific prefix.
+  ReactiveStream watchPrefix(String prefix) {
+    return watch().where((event) => event.key.startsWith(prefix));
+  }
+
+  /// Stream for a specific collection.
+  ReactiveStream watchCollection(String collection) {
+    return watchPrefix('$collection:');
+  }
+
   /// Compacts the database to reclaim space and optimize performance.
   Future<void> compact() async {
     _ensureOpen();
@@ -273,6 +308,53 @@ class ReaxDB {
     return this.collection(collection).whereEquals(field, value).find();
   }
 
+  /// Begin an enhanced transaction with advanced features
+  Future<EnhancedTransaction> beginEnhancedTransaction({
+    TransactionType type = TransactionType.readWrite,
+    IsolationLevel isolationLevel = IsolationLevel.readCommitted,
+    Duration? timeout,
+    int maxRetries = 3,
+    Duration retryDelay = const Duration(milliseconds: 100),
+  }) {
+    return _enhancedTxManager.begin(
+      type: type,
+      isolationLevel: isolationLevel,
+      timeout: timeout,
+      maxRetries: maxRetries,
+      retryDelay: retryDelay,
+    );
+  }
+
+  /// Begin a read-only transaction
+  Future<EnhancedTransaction> beginReadOnlyTransaction({
+    IsolationLevel isolationLevel = IsolationLevel.readCommitted,
+    Duration? timeout,
+  }) {
+    return _enhancedTxManager.beginReadOnly(
+      isolationLevel: isolationLevel,
+      timeout: timeout,
+    );
+  }
+
+  /// Execute with automatic transaction management and retry
+  Future<T> withTransaction<T>(
+    Future<T> Function(EnhancedTransaction) operation, {
+    TransactionType type = TransactionType.readWrite,
+    IsolationLevel isolationLevel = IsolationLevel.readCommitted,
+    Duration? timeout,
+    int maxRetries = 3,
+    Duration retryDelay = const Duration(milliseconds: 100),
+  }) {
+    return _enhancedTxManager.withTransaction(
+      operation,
+      type: type,
+      isolationLevel: isolationLevel,
+      timeout: timeout,
+      maxRetries: maxRetries,
+      retryDelay: retryDelay,
+    );
+  }
+
   /// Closes the database and releases all resources.
   Future<void> close() async {
     if (!_isOpen) return;
@@ -280,6 +362,7 @@ class ReaxDB {
     await _indexManager.close();
     await _storageEngine.close();
     await _transactionManager.close();
+    await _enhancedTxManager.closeAll();
     await _changeStream.close();
 
     for (final controller in _patternStreams.values) {
@@ -690,25 +773,6 @@ class DatabaseConfig {
   );
 }
 
-/// Represents a change event in the database.
-///
-/// Contains information about what changed, when, and the affected data.
-class DatabaseChangeEvent {
-  final ChangeType type;
-  final String key;
-  final dynamic value;
-  final DateTime timestamp;
-
-  const DatabaseChangeEvent({
-    required this.type,
-    required this.key,
-    required this.value,
-    required this.timestamp,
-  });
-}
-
-/// Types of database changes that can occur.
-enum ChangeType { put, delete, transaction }
 
 /// Exception thrown when database operations fail.
 class DatabaseException implements Exception {

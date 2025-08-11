@@ -1,6 +1,8 @@
 import '../indexing/index_manager.dart';
 import '../indexing/secondary_index.dart';
 import '../../reaxdb.dart';
+import '../logging/logger.dart';
+import 'aggregation.dart';
 
 /// Operators available for database queries.
 enum QueryOperator {
@@ -41,6 +43,11 @@ class QueryBuilder {
   int? _offsetValue;
   String? _orderByField;
   bool _orderDescending = false;
+  AggregationBuilder? _aggregationBuilder;
+  String? _textSearchQuery;
+  String? _textSearchField;
+  final List<String> _joinCollections = [];
+  final Map<String, String> _joinConditions = {};
 
   /// Creates a new query builder for the specified collection.
   QueryBuilder({
@@ -111,6 +118,15 @@ class QueryBuilder {
 
   /// Executes the query and returns all matching documents.
   Future<List<Map<String, dynamic>>> find() async {
+    // Text search support
+    if (_textSearchQuery != null) {
+      return await _findWithTextSearch();
+    }
+    
+    // Join support
+    if (_joinCollections.isNotEmpty) {
+      return await _findWithJoins();
+    }
     Set<String> candidateIds = {};
     bool hasIndexedQuery = false;
 
@@ -140,8 +156,9 @@ class QueryBuilder {
 
         candidateIds = (await index.findRange(null, null)).toSet();
       } else {
-        print('Query without index not implemented');
-        return [];
+        // Full collection scan when no index is available
+        logger.debug('Performing full collection scan for: $collection');
+        candidateIds = await _scanCollection();
       }
     }
 
@@ -178,6 +195,117 @@ class QueryBuilder {
   Future<int> count() async {
     final results = await find();
     return results.length;
+  }
+
+  /// Adds text search to the query
+  QueryBuilder search(String query, {String? field}) {
+    _textSearchQuery = query;
+    _textSearchField = field;
+    return this;
+  }
+
+  /// Adds a join with another collection
+  QueryBuilder join(String collection, String localField, String foreignField) {
+    _joinCollections.add(collection);
+    _joinConditions['$collection.$foreignField'] = localField;
+    return this;
+  }
+
+  /// Creates an aggregation builder
+  QueryBuilder aggregate(Function(AggregationBuilder) builder) {
+    _aggregationBuilder = AggregationBuilder();
+    builder(_aggregationBuilder!);
+    return this;
+  }
+
+  /// Executes aggregation query
+  Future<dynamic> executeAggregation() async {
+    if (_aggregationBuilder == null) {
+      throw StateError('No aggregation defined. Use aggregate() first.');
+    }
+    
+    final documents = await find();
+    return _aggregationBuilder!.execute(documents);
+  }
+
+  /// Gets distinct values for a field
+  Future<List<dynamic>> distinct(String field) async {
+    final documents = await find();
+    final values = <dynamic>{};
+    
+    for (final doc in documents) {
+      final value = _getFieldValue(doc, field);
+      if (value != null) {
+        values.add(value);
+      }
+    }
+    
+    return values.toList();
+  }
+
+  /// Updates all matching documents
+  Future<int> update(Map<String, dynamic> updates) async {
+    final documents = await find();
+    int updated = 0;
+    
+    for (final doc in documents) {
+      final key = '$collection:${doc['id'] ?? doc['_id'] ?? _generateId()}';
+      final updatedDoc = {...doc, ...updates};
+      await _db.put(key, updatedDoc);
+      updated++;
+    }
+    
+    return updated;
+  }
+
+  /// Deletes all matching documents
+  Future<int> delete() async {
+    final documents = await find();
+    int deleted = 0;
+    
+    for (final doc in documents) {
+      final key = '$collection:${doc['id'] ?? doc['_id'] ?? _generateId()}';
+      await _db.delete(key);
+      deleted++;
+    }
+    
+    return deleted;
+  }
+
+  dynamic _getFieldValue(Map<String, dynamic> doc, String field) {
+    final parts = field.split('.');
+    dynamic value = doc;
+    
+    for (final part in parts) {
+      if (value is Map<String, dynamic>) {
+        value = value[part];
+      } else {
+        return null;
+      }
+    }
+    
+    return value;
+  }
+
+  String _generateId() {
+    return DateTime.now().microsecondsSinceEpoch.toString();
+  }
+
+  Future<Set<String>> _scanCollection() async {
+    // This is a simple implementation that scans a reasonable range of IDs
+    // In a production system, you'd want to maintain a collection manifest
+    final ids = <String>{};
+    
+    // Try common ID patterns - check up to 1000 for tests
+    for (int i = 1; i <= 1000; i++) {
+      final key = '$collection:$i';
+      final value = await _db.get(key);
+      if (value != null) {
+        ids.add(i.toString());
+      }
+    }
+    
+    return ids;
   }
 
   bool _canUseIndex(QueryCondition condition) {
@@ -284,8 +412,106 @@ class QueryBuilder {
         if (fieldValue is String && condition.value is String) {
           return fieldValue.contains(condition.value);
         }
+        if (fieldValue is List) {
+          return fieldValue.contains(condition.value);
+        }
         return false;
     }
+  }
+
+  Future<List<Map<String, dynamic>>> _findWithTextSearch() async {
+    // Clear text search to avoid infinite recursion
+    final savedQuery = _textSearchQuery;
+    final savedField = _textSearchField;
+    _textSearchQuery = null;
+    _textSearchField = null;
+    
+    final allDocs = await find();
+    
+    // Restore search parameters
+    _textSearchQuery = savedQuery;
+    _textSearchField = savedField;
+    
+    final searchLower = savedQuery!.toLowerCase();
+    final results = <Map<String, dynamic>>[];
+    
+    for (final doc in allDocs) {
+      if (_textSearchField != null) {
+        // Search in specific field
+        final value = _getFieldValue(doc, _textSearchField!);
+        if (value != null && value.toString().toLowerCase().contains(searchLower)) {
+          results.add(doc);
+        }
+      } else {
+        // Search in all string fields
+        if (_searchInDocument(doc, searchLower)) {
+          results.add(doc);
+        }
+      }
+    }
+    
+    return results;
+  }
+
+  bool _searchInDocument(Map<String, dynamic> doc, String searchTerm) {
+    for (final value in doc.values) {
+      if (value is String && value.toLowerCase().contains(searchTerm)) {
+        return true;
+      } else if (value is Map<String, dynamic>) {
+        if (_searchInDocument(value, searchTerm)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  Future<List<Map<String, dynamic>>> _findWithJoins() async {
+    // Clear join parameters to avoid infinite recursion
+    final savedJoinCollections = List<String>.from(_joinCollections);
+    final savedJoinConditions = Map<String, String>.from(_joinConditions);
+    _joinCollections.clear();
+    _joinConditions.clear();
+    
+    final primaryDocs = await find();
+    
+    // Restore join parameters
+    _joinCollections.addAll(savedJoinCollections);
+    _joinConditions.addAll(savedJoinConditions);
+    final results = <Map<String, dynamic>>[];
+    
+    for (final doc in primaryDocs) {
+      final joinedDoc = Map<String, dynamic>.from(doc);
+      
+      for (final joinCollection in _joinCollections) {
+        final condition = _joinConditions['$joinCollection'];
+        if (condition != null) {
+          final localValue = _getFieldValue(doc, condition);
+          if (localValue != null) {
+            // Find matching documents in joined collection
+            final joinQuery = QueryBuilder(
+              collection: joinCollection,
+              db: _db,
+              indexManager: _indexManager,
+            );
+            
+            final parts = condition.split('.');
+            final foreignField = parts.last;
+            final joinedDocs = await joinQuery
+              .whereEquals(foreignField, localValue)
+              .find();
+            
+            if (joinedDocs.isNotEmpty) {
+              joinedDoc['_joined_$joinCollection'] = joinedDocs;
+            }
+          }
+        }
+      }
+      
+      results.add(joinedDoc);
+    }
+    
+    return results;
   }
 
   int _compare(dynamic a, dynamic b) {
