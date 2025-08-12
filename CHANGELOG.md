@@ -54,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced transaction tests now pass 100%
 
 ### Acknowledgments
-- Special thanks to [@TechWithDunamis](https://github.com/TechWithDunamis) for the pure Dart conversion (PR #4)
+- Special thanks to [@omtodkar](https://github.com/omtodkar) for the pure Dart conversion (PR #4)
 
 ## [1.2.3] - 2025-07-20
 
