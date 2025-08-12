@@ -17,7 +17,7 @@ The fastest NoSQL database for pure Dart. Store millions of records with 21,000+
 - **Enhanced Query Builder** - Aggregations, group by, text search, batch updates
 - **Advanced Transactions** - Isolation levels, savepoints, nested transactions, retry logic
 - **Performance** - Optimized query scanning and caching strategies
-- **Special Thanks** - [@TechWithDunamis](https://github.com/TechWithDunamis) for the pure Dart conversion (PR #4)
+- **Special Thanks** - [@omtodkar](https://github.com/omtodkar) for the pure Dart conversion (PR #4)
 
 ### Previous v1.2.3 (July 20, 2025)
 - **CRITICAL FIX** - Fixed data persistence between application sessions
