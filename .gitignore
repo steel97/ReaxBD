@@ -31,3 +31,9 @@ migrate_working_dir/
 build/
 
 .claude/
+coverage/
+test/encryption_test_db*/
+test/*_test_db*/
+test/test_db/
+test/benchmark_db/
+test/index_test_db/
