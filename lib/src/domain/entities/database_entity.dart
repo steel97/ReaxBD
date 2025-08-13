@@ -148,3 +148,30 @@ class TransactionStats {
     return 'TransactionStats(active: $activeTransactions, committed: $committedTransactions, aborted: $abortedTransactions)';
   }
 }
+
+/// Type of database change
+enum ChangeType {
+  put,
+  delete,
+  update,
+}
+
+/// Database change event
+class DatabaseChangeEvent {
+  final ChangeType type;
+  final String key;
+  final dynamic value;
+  final DateTime timestamp;
+
+  const DatabaseChangeEvent({
+    required this.type,
+    required this.key,
+    required this.value,
+    required this.timestamp,
+  });
+
+  @override
+  String toString() {
+    return 'DatabaseChangeEvent(type: $type, key: $key, timestamp: $timestamp)';
+  }
+}

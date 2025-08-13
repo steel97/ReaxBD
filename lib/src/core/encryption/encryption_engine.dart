@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
 
 import 'encryption_type.dart';
+import '../logging/logger.dart';
 
 import 'package:pointycastle/export.dart'
     if (dart.library.js_interop) 'encryption_wasm_fallback.dart';
@@ -37,8 +38,8 @@ class EncryptionEngine {
     }
 
     if (_type == EncryptionType.aes256 && _isWasmRuntime) {
-      debugPrint(
-        'Warning: Running in WASM mode. AES-256 using fallback implementation with reduced security.',
+      logger.warning(
+        'Running in WASM mode. AES-256 using fallback implementation with reduced security.',
       );
     }
 

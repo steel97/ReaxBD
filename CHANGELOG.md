@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-08-11
+
+### Changed
+- **Pure Dart Package**: Converted from Flutter-specific to pure Dart package - no longer requires Flutter SDK
+- Package can now be used in any Dart environment (CLI, server, web, Flutter)
+- **Note**: This is NOT a breaking change - all existing Flutter code continues to work
+
+### Added
+- **Configurable Logging System**: Multi-level logging with console, file, and memory outputs
+- **Reactive Streams**: Advanced stream operators including:
+  - `debounce()` - Delay events until a pause in emissions
+  - `throttle()` - Limit event frequency
+  - `buffer()` - Collect multiple events before emitting
+  - `take()` and `skip()` - Control number of events
+  - `map()` - Transform event data
+- **Enhanced Query Builder**:
+  - Aggregation functions: COUNT, SUM, AVG, MIN, MAX, DISTINCT
+  - GROUP BY operations with multiple aggregations
+  - Full-text search capabilities
+  - Batch update operations
+  - Batch delete operations
+  - Improved scanning for large datasets (up to 1000 IDs)
+- **Advanced Transaction Features**:
+  - Transaction isolation levels (ReadUncommitted, ReadCommitted, RepeatableRead, Serializable)
+  - Read-only transactions with write protection
+  - Savepoints for partial rollback
+  - Nested transactions
+  - Automatic retry logic with exponential backoff
+  - Transaction timeout support
+  - Transaction statistics and monitoring
+- **Enhanced Transaction Manager**:
+  - `withTransaction()` - Automatic transaction management with retry
+  - `beginEnhancedTransaction()` - Create transactions with advanced features
+  - `beginReadOnlyTransaction()` - Create read-only transactions
+  - Active transaction tracking
+  - Bulk transaction closure
+
+### Improved
+- **Query Performance**: Extended collection scanning from 20 to 1000 IDs
+- **Test Coverage**: Added comprehensive tests for all new features
+- **API Documentation**: Enhanced documentation with examples for new features
+- **Error Handling**: Better error messages and transaction failure handling
+
+### Fixed
+- Transaction retry logic now properly implements exponential backoff
+- Query aggregation test expectations corrected
+- Enhanced transaction tests now pass 100%
+
+### Acknowledgments
+- Special thanks to [@TechWithDunamis](https://github.com/TechWithDunamis) for the pure Dart conversion (PR #4)
+
 ## [1.2.3] - 2025-07-20
 
 ### Fixed

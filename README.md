@@ -3,14 +3,23 @@
 [![pub package](https://img.shields.io/pub/v/reaxdb_dart.svg)](https://pub.dev/packages/reaxdb_dart)
 [![GitHub stars](https://img.shields.io/github/stars/dvillegastech/ReaxBD.svg)](https://github.com/dvillegastech/ReaxBD/stargazers)
 [![GitHub license](https://img.shields.io/github/license/dvillegastech/ReaxBD.svg)](https://github.com/dvillegastech/ReaxBD/blob/main/LICENSE)
-[![Flutter](https://img.shields.io/badge/Flutter-%E2%9D%A4-blue)](https://flutter.dev)
-[![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android%20%7C%20macOS%20%7C%20Windows%20%7C%20Linux-blue)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-%E2%9D%A4-blue)](https://dart.dev)
+[![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android%20%7C%20macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20Web-blue)](https://dart.dev)
 
-The fastest NoSQL database for Flutter. Store millions of records with 21,000+ writes per second, instant reads from cache, and built-in encryption. Perfect for offline-first apps, real-time sync, and large datasets. Works on all platforms with zero native dependencies.
+The fastest NoSQL database for pure Dart. Store millions of records with 21,000+ writes per second, instant reads from cache, and built-in encryption. Perfect for offline-first apps, real-time sync, and large datasets. Works on all platforms with zero native dependencies - now as a pure Dart package!
 
-**Keywords:** Flutter database, NoSQL, offline-first, local storage, cache, encryption, ACID transactions, real-time sync, mobile database, embedded database, key-value store, document database, high performance, zero dependencies
+**Keywords:** Dart database, NoSQL, offline-first, local storage, cache, encryption, ACID transactions, real-time sync, embedded database, key-value store, document database, high performance, zero dependencies, pure Dart, reactive streams, aggregations
 
-## 🆕 What's New in v1.2.3 (July 20, 2025)
+## 🆕 What's New in v1.3.0 (August 11, 2025)
+- **Pure Dart Package** - Converted from Flutter-specific to pure Dart package (PR #4)
+- **Configurable Logging** - Multi-level logging with file/console/memory outputs
+- **Reactive Streams** - Advanced stream operators (debounce, throttle, buffer, map)
+- **Enhanced Query Builder** - Aggregations, group by, text search, batch updates
+- **Advanced Transactions** - Isolation levels, savepoints, nested transactions, retry logic
+- **Performance** - Optimized query scanning and caching strategies
+- **Special Thanks** - [@TechWithDunamis](https://github.com/TechWithDunamis) for the pure Dart conversion (PR #4)
+
+### Previous v1.2.3 (July 20, 2025)
 - **CRITICAL FIX** - Fixed data persistence between application sessions
 - **WAL Recovery** - Data now properly restores when reopening database
 - **Stability** - Fixed async operations and operation ordering
@@ -40,12 +49,18 @@ The fastest NoSQL database for Flutter. Store millions of records with 21,000+ w
 
 ## Features
 
+- **Pure Dart**: Works in any Dart environment - no Flutter dependency required
 - **High Performance**: Zero-copy serialization and multi-level caching system
 - **Security**: Built-in AES encryption with customizable keys
 - **ACID Transactions**: Full transaction support with isolation levels
+- **Advanced Transactions**: Savepoints, nested transactions, automatic retry
 - **Concurrent Operations**: Connection pooling and batch processing
 - **Mobile Optimized**: Hybrid storage engine designed for mobile devices
 - **Real-time Streams**: Live data change notifications with pattern matching
+- **Reactive Programming**: Stream operators like debounce, throttle, buffer
+- **Query Aggregations**: COUNT, SUM, AVG, MIN, MAX, DISTINCT, GROUP BY
+- **Text Search**: Full-text search across documents
+- **Configurable Logging**: Multi-level logging with various outputs
 - **Data Persistence**: Reliable WAL-based persistence across app sessions
 
 ## Installation
@@ -54,13 +69,19 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  reaxdb_dart: ^1.2.3
+  reaxdb_dart: ^1.3.0
 ```
 
 Then run:
 
 ```bash
 flutter pub get
+```
+
+or
+
+```bash
+dart pub get
 ```
 
 ## Quick Start
@@ -118,7 +139,7 @@ final persistedUser = await db2.get('user:123');
 // persistedUser is null because it was deleted
 ```
 
-### Secondary Indexes (NEW!)
+### Secondary Indexes & Advanced Queries
 
 ```dart
 // Create indexes for fast queries
@@ -142,6 +163,56 @@ final results = await db.collection('users')
     .whereGreaterThan('age', 21)
     .limit(10)
     .find();
+
+// Aggregations (NEW!)
+final stats = await db.collection('users')
+    .aggregate((agg) => agg
+        .count()
+        .avg('age')
+        .min('age')
+        .max('age')
+        .sum('purchases')
+        .distinct('city'))
+    .executeAggregation();
+
+print('Total users: ${stats['count'].value}');
+print('Average age: ${stats['avg_age'].value}');
+print('Unique cities: ${stats['distinct_city'].value}');
+
+// Group By operations (NEW!)
+final salesByRegion = await db.collection('sales')
+    .aggregate((agg) => agg
+        .groupBy('region')
+        .sum('amount')
+        .count()
+        .avg('amount'))
+    .executeAggregation();
+
+for (final group in salesByRegion) {
+  print('Region: ${group.groupKey}');
+  print('Total sales: ${group.aggregations['sum_amount'].value}');
+  print('Number of sales: ${group.aggregations['count'].value}');
+}
+
+// Text search (NEW!)
+final searchResults = await db.collection('articles')
+    .search('flutter dart', field: 'content')
+    .limit(10)
+    .find();
+
+// Batch updates (NEW!)
+final updateCount = await db.collection('products')
+    .whereEquals('category', 'electronics')
+    .update({'onSale': true, 'discount': 0.2});
+
+print('Updated $updateCount products');
+
+// Batch deletes (NEW!)
+final deleteCount = await db.collection('logs')
+    .whereLessThan('timestamp', DateTime.now().subtract(Duration(days: 30)))
+    .delete();
+
+print('Deleted $deleteCount old logs');
 ```
 
 ### Batch Operations
@@ -161,9 +232,8 @@ final users = await db.getBatch(['user:1', 'user:2', 'user:3']);
 ### Transactions
 
 ```dart
-final txn = await db.beginTransaction();
-
-try {
+// Basic transactions
+await db.transaction((txn) async {
   await txn.put('account:1', {'balance': 1000});
   await txn.put('account:2', {'balance': 500});
   
@@ -173,30 +243,105 @@ try {
   
   await txn.put('account:1', {'balance': account1['balance'] - 100});
   await txn.put('account:2', {'balance': account2['balance'] + 100});
-  
-  await txn.commit();
-} catch (e) {
-  await txn.rollback();
-  rethrow;
-}
+});
+
+// Advanced transactions with retry logic (NEW!)
+await db.withTransaction(
+  (txn) async {
+    // Your transactional operations
+    await txn.put('key', 'value', (k, v) async {});
+  },
+  maxRetries: 3,
+  retryDelay: Duration(milliseconds: 100),
+  isolationLevel: IsolationLevel.serializable,
+);
+
+// Read-only transactions (NEW!)
+final txn = await db.beginReadOnlyTransaction();
+final value = await txn.get('key', (k) async => await db.get(k));
+await txn.rollback();
+
+// Transactions with savepoints (NEW!)
+final txn = await db.beginEnhancedTransaction();
+await txn.put('key1', 'value1', (k, v) async {});
+await txn.savepoint('sp1');
+await txn.put('key2', 'value2', (k, v) async {});
+// Rollback to savepoint if needed
+await txn.rollbackToSavepoint('sp1');
+await txn.commit((changes) async {});
 ```
 
 ### Real-time Data Streams
 
 ```dart
 // Listen to all changes
-final subscription = db.watchAll().listen((event) {
+final subscription = db.changeStream.listen((event) {
   print('${event.type}: ${event.key} = ${event.value}');
 });
 
 // Listen to specific patterns
-final userStream = db.watchPattern('user:*').listen((event) {
+final userStream = db.stream('user:*').listen((event) {
   print('User updated: ${event.key}');
 });
+
+// Reactive streams with operators (NEW!)
+db.watch()
+  .where((event) => event.key.startsWith('user:'))
+  .debounce(Duration(milliseconds: 500))
+  .map((event) => event.value)
+  .listen((userData) {
+    print('User data changed: $userData');
+  });
+
+// Throttle high-frequency updates (NEW!)
+db.watchKey('counter')
+  .throttle(Duration(seconds: 1))
+  .listen((event) {
+    print('Counter updated (max once per second): ${event.value}');
+  });
+
+// Buffer events (NEW!)
+db.watchCollection('logs')
+  .buffer(10) // Collect 10 events before emitting
+  .listen((events) {
+    print('Got ${events.length} log entries');
+  });
 
 // Don't forget to cancel subscriptions
 subscription.cancel();
 userStream.cancel();
+```
+
+### Configurable Logging (NEW!)
+
+```dart
+import 'package:reaxdb_dart/reaxdb_dart.dart';
+
+// Configure logging level
+ReaxLogger.instance.configure(
+  level: LogLevel.debug,
+  outputs: [
+    ConsoleLogOutput(),
+    FileLogOutput('/path/to/logs/app.log'),
+    MemoryLogOutput(maxLines: 1000),
+  ],
+);
+
+// Use the logger
+final logger = ReaxLogger.instance;
+logger.info('Database opened successfully');
+logger.debug('Query executed', metadata: {'query': 'SELECT * FROM users'});
+logger.warning('Cache miss for key: user:123');
+logger.error('Transaction failed', error: exception);
+
+// Disable logging for production
+ReaxLogger.instance.configure(level: LogLevel.none);
+
+// Get memory logs
+final memoryOutput = ReaxLogger.instance.outputs
+    .whereType<MemoryLogOutput>()
+    .first;
+final logs = memoryOutput.getLogs();
 ```
 
 ### Advanced Features
@@ -218,8 +363,10 @@ final stats = db.getPerformanceStats();
 print('Cache hit ratio: ${stats['cache']['total_hit_ratio']}');
 
 final dbInfo = await db.getDatabaseInfo();
-print('Database size: ${dbInfo['database']['size']} bytes');
-print('Total entries: ${dbInfo['database']['entries']}');
+print('Database name: ${dbInfo.name}');
+print('Database size: ${dbInfo.sizeBytes} bytes');
+print('Total entries: ${dbInfo.entryCount}');
+print('Is encrypted: ${dbInfo.isEncrypted}');
 ```
 
 ## Configuration Options
@@ -355,6 +502,13 @@ await db.close();
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Contributors
+
+Special thanks to all contributors who have helped make ReaxDB better:
+
+- **[@TechWithDunamis](https://github.com/TechWithDunamis)** - Pure Dart conversion (PR #4) - Converted ReaxDB from Flutter-specific to pure Dart package, enabling use in all Dart environments
+- **Ray Caruso** - Bug report for persistence issue (v1.2.3)
 
 ## Contributing
 

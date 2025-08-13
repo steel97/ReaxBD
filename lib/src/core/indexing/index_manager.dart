@@ -1,8 +1,8 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 
 import 'secondary_index.dart';
 import '../storage/hybrid_storage_engine.dart';
+import '../logging/logger.dart';
 
 // Index manager
 class IndexManager {
@@ -150,7 +150,7 @@ class IndexManager {
 
             _indexes['$collection.$fieldName'] = index;
           } catch (e) {
-            debugPrint('Failed to load index $collection.$fieldName: $e');
+            logger.error('Failed to load index $collection.$fieldName', error: e);
           }
         }
       }
@@ -171,11 +171,11 @@ class IndexManager {
     SecondaryIndex index,
   ) async {
     try {
-      debugPrint('Rebuilding index for $collection.$fieldName...');
+      logger.info('Rebuilding index for $collection.$fieldName...');
 
-      debugPrint('Index rebuild skipped');
+      logger.debug('Index rebuild skipped');
     } catch (e) {
-      debugPrint('Failed to rebuild index for $collection.$fieldName: $e');
+      logger.error('Failed to rebuild index for $collection.$fieldName', error: e);
     }
   }
 }
