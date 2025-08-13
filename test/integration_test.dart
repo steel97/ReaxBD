@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:test/test.dart';
 import 'package:reaxdb_dart/reaxdb_dart.dart';
 

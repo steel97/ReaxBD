@@ -484,7 +484,7 @@ class QueryBuilder {
       final joinedDoc = Map<String, dynamic>.from(doc);
       
       for (final joinCollection in _joinCollections) {
-        final condition = _joinConditions['$joinCollection'];
+        final condition = _joinConditions[joinCollection];
         if (condition != null) {
           final localValue = _getFieldValue(doc, condition);
           if (localValue != null) {
