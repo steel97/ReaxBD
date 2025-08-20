@@ -11,10 +11,7 @@ enum IsolationLevel {
 }
 
 /// Transaction type
-enum TransactionType {
-  readWrite,
-  readOnly,
-}
+enum TransactionType { readWrite, readOnly }
 
 /// Savepoint for nested transactions
 class Savepoint {
@@ -22,10 +19,8 @@ class Savepoint {
   final Map<String, dynamic> snapshot;
   final DateTime created;
 
-  Savepoint({
-    required this.name,
-    required this.snapshot,
-  }) : created = DateTime.now();
+  Savepoint({required this.name, required this.snapshot})
+    : created = DateTime.now();
 }
 
 /// Enhanced transaction with advanced features
@@ -36,17 +31,17 @@ class EnhancedTransaction {
   final Duration? timeout;
   final int maxRetries;
   final Duration retryDelay;
-  
+
   final Map<String, dynamic> _changes = {};
   final Map<String, dynamic> _originalValues = {};
   final List<Savepoint> _savepoints = [];
   final List<EnhancedTransaction> _nestedTransactions = [];
-  
+
   bool _isCommitted = false;
   bool _isRolledBack = false;
   int _retryCount = 0;
   DateTime? _startTime;
-  EnhancedTransaction? _parent;
+  final EnhancedTransaction? _parent;
 
   EnhancedTransaction({
     required this.id,
@@ -93,12 +88,16 @@ class EnhancedTransaction {
         isolationLevel == IsolationLevel.serializable) {
       _originalValues[key] = value;
     }
-    
+
     return value;
   }
 
   /// Put a value within the transaction
-  Future<void> put(String key, dynamic value, Future<void> Function(String, dynamic) putter) async {
+  Future<void> put(
+    String key,
+    dynamic value,
+    Future<void> Function(String, dynamic) putter,
+  ) async {
     _checkActive();
     _checkTimeout();
     _checkReadOnly();
@@ -131,14 +130,11 @@ class EnhancedTransaction {
     _checkActive();
     _checkTimeout();
 
-    final savepoint = Savepoint(
-      name: name,
-      snapshot: Map.from(_changes),
-    );
+    final savepoint = Savepoint(name: name, snapshot: Map.from(_changes));
 
     _savepoints.add(savepoint);
     logger.debug('Created savepoint: $name in transaction $id');
-    
+
     return name;
   }
 
@@ -158,14 +154,14 @@ class EnhancedTransaction {
 
     // Remove all savepoints after this one
     _savepoints.removeRange(index + 1, _savepoints.length);
-    
+
     logger.debug('Rolled back to savepoint: $name in transaction $id');
   }
 
   /// Release a savepoint
   Future<void> releaseSavepoint(String name) async {
     _checkActive();
-    
+
     _savepoints.removeWhere((sp) => sp.name == name);
     logger.debug('Released savepoint: $name in transaction $id');
   }
@@ -188,12 +184,14 @@ class EnhancedTransaction {
 
     _nestedTransactions.add(nested);
     logger.debug('Started nested transaction: ${nested.id}');
-    
+
     return nested;
   }
 
   /// Commit the transaction
-  Future<void> commit(Future<void> Function(Map<String, dynamic>) committer) async {
+  Future<void> commit(
+    Future<void> Function(Map<String, dynamic>) committer,
+  ) async {
     _checkActive();
     _checkTimeout();
 
@@ -216,7 +214,6 @@ class EnhancedTransaction {
 
       _isCommitted = true;
       logger.info('Transaction $id committed successfully');
-      
     } catch (e) {
       logger.error('Failed to commit transaction $id', error: e);
       rethrow;
@@ -238,9 +235,8 @@ class EnhancedTransaction {
       _changes.clear();
       _savepoints.clear();
       _isRolledBack = true;
-      
+
       logger.info('Transaction $id rolled back');
-      
     } catch (e) {
       logger.error('Error during rollback of transaction $id', error: e);
       rethrow;
@@ -254,14 +250,19 @@ class EnhancedTransaction {
         return await operation();
       } catch (e) {
         _retryCount++;
-        
+
         if (_retryCount >= maxRetries) {
-          logger.error('Transaction $id failed after $maxRetries retries', error: e);
+          logger.error(
+            'Transaction $id failed after $maxRetries retries',
+            error: e,
+          );
           rethrow;
         }
 
-        logger.warning('Transaction $id retry $_retryCount/$maxRetries after error', 
-          metadata: {'error': e.toString()});
+        logger.warning(
+          'Transaction $id retry $_retryCount/$maxRetries after error',
+          metadata: {'error': e.toString()},
+        );
 
         // Exponential backoff with jitter
         final delay = retryDelay * pow(2, _retryCount - 1);
@@ -305,9 +306,10 @@ class EnhancedTransaction {
       'nestedTransactions': _nestedTransactions.length,
       'retryCount': _retryCount,
       'isActive': isActive,
-      'duration': _startTime != null 
-        ? DateTime.now().difference(_startTime!).inMilliseconds 
-        : 0,
+      'duration':
+          _startTime != null
+              ? DateTime.now().difference(_startTime!).inMilliseconds
+              : 0,
     };
   }
 }
@@ -326,8 +328,9 @@ class EnhancedTransactionManager {
     Duration retryDelay = const Duration(milliseconds: 100),
   }) async {
     _transactionCounter++;
-    final id = 'txn-$_transactionCounter-${DateTime.now().millisecondsSinceEpoch}';
-    
+    final id =
+        'txn-$_transactionCounter-${DateTime.now().millisecondsSinceEpoch}';
+
     final transaction = EnhancedTransaction(
       id: id,
       type: type,
@@ -338,10 +341,13 @@ class EnhancedTransactionManager {
     );
 
     _activeTransactions[id] = transaction;
-    logger.info('Started transaction $id', metadata: {
-      'type': type.toString(),
-      'isolationLevel': isolationLevel.toString(),
-    });
+    logger.info(
+      'Started transaction $id',
+      metadata: {
+        'type': type.toString(),
+        'isolationLevel': isolationLevel.toString(),
+      },
+    );
 
     return transaction;
   }
@@ -369,7 +375,7 @@ class EnhancedTransactionManager {
   }) async {
     int attempts = 0;
     Exception? lastException;
-    
+
     while (attempts < maxRetries) {
       final transaction = await begin(
         type: type,
@@ -389,27 +395,28 @@ class EnhancedTransactionManager {
         _activeTransactions.remove(transaction.id);
         lastException = e as Exception;
         attempts++;
-        
+
         if (attempts >= maxRetries) {
           throw lastException;
         }
-        
+
         // Exponential backoff with jitter
         final delay = retryDelay * pow(2, attempts - 1);
         final jitter = Random().nextInt(100);
         await Future.delayed(delay + Duration(milliseconds: jitter));
       }
     }
-    
-    throw lastException ?? Exception('Transaction failed after $maxRetries attempts');
+
+    throw lastException ??
+        Exception('Transaction failed after $maxRetries attempts');
   }
 
   /// Get active transaction count
   int get activeTransactionCount => _activeTransactions.length;
 
   /// Get all active transactions
-  List<EnhancedTransaction> get activeTransactions => 
-    _activeTransactions.values.toList();
+  List<EnhancedTransaction> get activeTransactions =>
+      _activeTransactions.values.toList();
 
   /// Close all active transactions
   Future<void> closeAll() async {

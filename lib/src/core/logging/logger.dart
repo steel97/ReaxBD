@@ -5,7 +5,7 @@ import 'log_output.dart';
 class ReaxLogger {
   static ReaxLogger? _instance;
   static ReaxLogger get instance => _instance ??= ReaxLogger._();
-  
+
   LogLevel _level = LogLevel.info;
   final List<LogOutput> _outputs = [];
   bool _enabled = true;
@@ -18,11 +18,7 @@ class ReaxLogger {
   }
 
   /// Configure the logger
-  void configure({
-    LogLevel? level,
-    List<LogOutput>? outputs,
-    bool? enabled,
-  }) {
+  void configure({LogLevel? level, List<LogOutput>? outputs, bool? enabled}) {
     if (level != null) _level = level;
     if (outputs != null) {
       _outputs.clear();
@@ -57,8 +53,19 @@ class ReaxLogger {
   }
 
   /// Log an error message
-  Future<void> error(String message, {Object? error, StackTrace? stackTrace, Map<String, dynamic>? metadata}) async {
-    await _log(LogLevel.error, message, error: error, stackTrace: stackTrace, metadata: metadata);
+  Future<void> error(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await _log(
+      LogLevel.error,
+      message,
+      error: error,
+      stackTrace: stackTrace,
+      metadata: metadata,
+    );
   }
 
   /// Log a warning message

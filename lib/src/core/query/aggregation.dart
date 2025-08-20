@@ -1,12 +1,5 @@
 /// Aggregation functions for queries
-enum AggregationFunction {
-  count,
-  sum,
-  avg,
-  min,
-  max,
-  distinct,
-}
+enum AggregationFunction { count, sum, avg, min, max, distinct }
 
 /// Aggregation result
 class AggregationResult {
@@ -48,55 +41,49 @@ class AggregationBuilder {
 
   /// Add count aggregation
   AggregationBuilder count([String? field]) {
-    _aggregations.add(_AggregationSpec(
-      function: AggregationFunction.count,
-      field: field,
-    ));
+    _aggregations.add(
+      _AggregationSpec(function: AggregationFunction.count, field: field),
+    );
     return this;
   }
 
   /// Add sum aggregation
   AggregationBuilder sum(String field) {
-    _aggregations.add(_AggregationSpec(
-      function: AggregationFunction.sum,
-      field: field,
-    ));
+    _aggregations.add(
+      _AggregationSpec(function: AggregationFunction.sum, field: field),
+    );
     return this;
   }
 
   /// Add average aggregation
   AggregationBuilder avg(String field) {
-    _aggregations.add(_AggregationSpec(
-      function: AggregationFunction.avg,
-      field: field,
-    ));
+    _aggregations.add(
+      _AggregationSpec(function: AggregationFunction.avg, field: field),
+    );
     return this;
   }
 
   /// Add min aggregation
   AggregationBuilder min(String field) {
-    _aggregations.add(_AggregationSpec(
-      function: AggregationFunction.min,
-      field: field,
-    ));
+    _aggregations.add(
+      _AggregationSpec(function: AggregationFunction.min, field: field),
+    );
     return this;
   }
 
   /// Add max aggregation
   AggregationBuilder max(String field) {
-    _aggregations.add(_AggregationSpec(
-      function: AggregationFunction.max,
-      field: field,
-    ));
+    _aggregations.add(
+      _AggregationSpec(function: AggregationFunction.max, field: field),
+    );
     return this;
   }
 
   /// Add distinct count aggregation
   AggregationBuilder distinct(String field) {
-    _aggregations.add(_AggregationSpec(
-      function: AggregationFunction.distinct,
-      field: field,
-    ));
+    _aggregations.add(
+      _AggregationSpec(function: AggregationFunction.distinct, field: field),
+    );
     return this;
   }
 
@@ -119,14 +106,17 @@ class AggregationBuilder {
     }
   }
 
-  Map<String, AggregationResult> _executeSimple(List<Map<String, dynamic>> documents) {
+  Map<String, AggregationResult> _executeSimple(
+    List<Map<String, dynamic>> documents,
+  ) {
     final results = <String, AggregationResult>{};
 
     for (final spec in _aggregations) {
-      final key = spec.field != null 
-        ? '${spec.function.name}_${spec.field}' 
-        : spec.function.name;
-      
+      final key =
+          spec.field != null
+              ? '${spec.function.name}_${spec.field}'
+              : spec.function.name;
+
       results[key] = _executeAggregation(spec, documents);
     }
 
@@ -146,20 +136,23 @@ class AggregationBuilder {
     final results = <GroupByResult>[];
     for (final entry in groups.entries) {
       final groupAggregations = <String, AggregationResult>{};
-      
+
       for (final spec in _aggregations) {
-        final key = spec.field != null 
-          ? '${spec.function.name}_${spec.field}' 
-          : spec.function.name;
-        
+        final key =
+            spec.field != null
+                ? '${spec.function.name}_${spec.field}'
+                : spec.function.name;
+
         groupAggregations[key] = _executeAggregation(spec, entry.value);
       }
 
-      results.add(GroupByResult(
-        groupKey: entry.key,
-        documents: entry.value,
-        aggregations: groupAggregations,
-      ));
+      results.add(
+        GroupByResult(
+          groupKey: entry.key,
+          documents: entry.value,
+          aggregations: groupAggregations,
+        ),
+      );
     }
 
     return results;
@@ -177,9 +170,10 @@ class AggregationBuilder {
             value: documents.length,
           );
         } else {
-          final count = documents.where((doc) => 
-            _getFieldValue(doc, spec.field!) != null
-          ).length;
+          final count =
+              documents
+                  .where((doc) => _getFieldValue(doc, spec.field!) != null)
+                  .length;
           return AggregationResult(
             function: spec.function,
             field: spec.field,
@@ -222,7 +216,8 @@ class AggregationBuilder {
         for (final doc in documents) {
           final value = _getFieldValue(doc, spec.field!);
           if (value != null) {
-            if (minValue == null || (value as Comparable).compareTo(minValue) < 0) {
+            if (minValue == null ||
+                (value as Comparable).compareTo(minValue) < 0) {
               minValue = value;
             }
           }
@@ -238,7 +233,8 @@ class AggregationBuilder {
         for (final doc in documents) {
           final value = _getFieldValue(doc, spec.field!);
           if (value != null) {
-            if (maxValue == null || (value as Comparable).compareTo(maxValue) > 0) {
+            if (maxValue == null ||
+                (value as Comparable).compareTo(maxValue) > 0) {
               maxValue = value;
             }
           }
@@ -269,7 +265,7 @@ class AggregationBuilder {
   dynamic _getFieldValue(Map<String, dynamic> doc, String field) {
     final parts = field.split('.');
     dynamic value = doc;
-    
+
     for (final part in parts) {
       if (value is Map<String, dynamic>) {
         value = value[part];
@@ -277,7 +273,7 @@ class AggregationBuilder {
         return null;
       }
     }
-    
+
     return value;
   }
 }
@@ -286,8 +282,5 @@ class _AggregationSpec {
   final AggregationFunction function;
   final String? field;
 
-  _AggregationSpec({
-    required this.function,
-    this.field,
-  });
+  _AggregationSpec({required this.function, this.field});
 }

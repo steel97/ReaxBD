@@ -4,7 +4,8 @@ import '../../domain/entities/database_entity.dart';
 /// Reactive stream builder for database changes
 class ReactiveStream {
   final Stream<DatabaseChangeEvent> _sourceStream;
-  final List<StreamTransformer<DatabaseChangeEvent, DatabaseChangeEvent>> _transformers = [];
+  final List<StreamTransformer<DatabaseChangeEvent, DatabaseChangeEvent>>
+  _transformers = [];
 
   ReactiveStream(this._sourceStream);
 
@@ -32,7 +33,9 @@ class ReactiveStream {
   }
 
   /// Distinct events based on a key selector
-  ReactiveStream distinct([Object? Function(DatabaseChangeEvent)? keySelector]) {
+  ReactiveStream distinct([
+    Object? Function(DatabaseChangeEvent)? keySelector,
+  ]) {
     _transformers.add(
       StreamTransformer<DatabaseChangeEvent, DatabaseChangeEvent>.fromHandlers(
         handleData: (event, sink) {
@@ -93,14 +96,17 @@ class ReactiveStream {
   /// Buffer events into batches
   Stream<List<DatabaseChangeEvent>> buffer(int count) {
     final buffer = <DatabaseChangeEvent>[];
-    
+
     Stream<DatabaseChangeEvent> stream = _sourceStream;
     for (final transformer in _transformers) {
       stream = stream.transform(transformer);
     }
 
     return stream.transform(
-      StreamTransformer<DatabaseChangeEvent, List<DatabaseChangeEvent>>.fromHandlers(
+      StreamTransformer<
+        DatabaseChangeEvent,
+        List<DatabaseChangeEvent>
+      >.fromHandlers(
         handleData: (event, sink) {
           buffer.add(event);
           if (buffer.length >= count) {
@@ -129,7 +135,10 @@ class ReactiveStream {
     }
 
     return stream.transform(
-      StreamTransformer<DatabaseChangeEvent, List<DatabaseChangeEvent>>.fromHandlers(
+      StreamTransformer<
+        DatabaseChangeEvent,
+        List<DatabaseChangeEvent>
+      >.fromHandlers(
         handleData: (event, sink) {
           if (buffer.isEmpty) {
             timer = Timer(duration, () {
@@ -201,7 +210,7 @@ class ReactiveStream {
     for (final transformer in _transformers) {
       stream = stream.transform(transformer);
     }
-    
+
     return stream.listen(
       onData,
       onError: onError,

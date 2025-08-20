@@ -150,11 +150,7 @@ class TransactionStats {
 }
 
 /// Type of database change
-enum ChangeType {
-  put,
-  delete,
-  update,
-}
+enum ChangeType { put, delete, update }
 
 /// Database change event
 class DatabaseChangeEvent {

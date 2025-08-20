@@ -183,8 +183,7 @@ class MemTable {
     final prefixString = _keyToString(prefix);
 
     for (final entry in data.entries) {
-      if (entry.key.startsWith(prefixString) &&
-          entry.value != null) {
+      if (entry.key.startsWith(prefixString) && entry.value != null) {
         result[_stringToKey(entry.key)] = entry.value!;
       }
     }

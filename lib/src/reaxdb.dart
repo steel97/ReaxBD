@@ -27,7 +27,8 @@ class ReaxDB {
   final tx_manager.TransactionManager _transactionManager;
   final IndexManager _indexManager;
   final EncryptionEngine? _encryptionEngine;
-  final EnhancedTransactionManager _enhancedTxManager = EnhancedTransactionManager();
+  final EnhancedTransactionManager _enhancedTxManager =
+      EnhancedTransactionManager();
 
   final StreamController<DatabaseChangeEvent> _changeStream =
       StreamController<DatabaseChangeEvent>.broadcast();
@@ -50,9 +51,9 @@ class ReaxDB {
        _encryptionEngine = encryptionEngine;
 
   /// Create a simple database instance with optimized defaults.
-  /// 
+  ///
   /// This is the recommended way to get started with ReaxDB.
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// final db = await ReaxDB.simple('myapp');
@@ -65,9 +66,9 @@ class ReaxDB {
   }) async {
     return SimpleReaxDB.open(name, encrypted: encrypted, path: path);
   }
-  
+
   /// Quick start method - even simpler than simple()!
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// final db = await ReaxDB.quickStart('myapp');
@@ -271,7 +272,8 @@ class ReaxDB {
   /// Watch changes for keys matching a pattern.
   ReactiveStream watchPattern(String pattern) {
     if (!_patternStreams.containsKey(pattern)) {
-      _patternStreams[pattern] = StreamController<DatabaseChangeEvent>.broadcast();
+      _patternStreams[pattern] =
+          StreamController<DatabaseChangeEvent>.broadcast();
     }
     return ReactiveStream(_patternStreams[pattern]!.stream);
   }
@@ -675,7 +677,7 @@ class ReaxDB {
     int? limit,
   }) async {
     _ensureOpen();
-    
+
     // TODO: Implement proper scan functionality
     // For now, return empty map
     return <String, T?>{};
@@ -684,7 +686,7 @@ class ReaxDB {
   // Prefix scan operations
   Future<Map<String, T?>> scanPrefix<T>(String prefix, {int? limit}) async {
     _ensureOpen();
-    
+
     // TODO: Implement proper scan functionality
     // For now, return empty map
     return <String, T?>{};
@@ -804,7 +806,6 @@ class DatabaseConfig {
     encryptionType: EncryptionType.aes256,
   );
 }
-
 
 /// Exception thrown when database operations fail.
 class DatabaseException implements Exception {

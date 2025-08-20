@@ -122,7 +122,7 @@ class QueryBuilder {
     if (_textSearchQuery != null) {
       return await _findWithTextSearch();
     }
-    
+
     // Join support
     if (_joinCollections.isNotEmpty) {
       return await _findWithJoins();
@@ -223,7 +223,7 @@ class QueryBuilder {
     if (_aggregationBuilder == null) {
       throw StateError('No aggregation defined. Use aggregate() first.');
     }
-    
+
     final documents = await find();
     return _aggregationBuilder!.execute(documents);
   }
@@ -232,14 +232,14 @@ class QueryBuilder {
   Future<List<dynamic>> distinct(String field) async {
     final documents = await find();
     final values = <dynamic>{};
-    
+
     for (final doc in documents) {
       final value = _getFieldValue(doc, field);
       if (value != null) {
         values.add(value);
       }
     }
-    
+
     return values.toList();
   }
 
@@ -247,14 +247,14 @@ class QueryBuilder {
   Future<int> update(Map<String, dynamic> updates) async {
     final documents = await find();
     int updated = 0;
-    
+
     for (final doc in documents) {
       final key = '$collection:${doc['id'] ?? doc['_id'] ?? _generateId()}';
       final updatedDoc = {...doc, ...updates};
       await _db.put(key, updatedDoc);
       updated++;
     }
-    
+
     return updated;
   }
 
@@ -262,20 +262,20 @@ class QueryBuilder {
   Future<int> delete() async {
     final documents = await find();
     int deleted = 0;
-    
+
     for (final doc in documents) {
       final key = '$collection:${doc['id'] ?? doc['_id'] ?? _generateId()}';
       await _db.delete(key);
       deleted++;
     }
-    
+
     return deleted;
   }
 
   dynamic _getFieldValue(Map<String, dynamic> doc, String field) {
     final parts = field.split('.');
     dynamic value = doc;
-    
+
     for (final part in parts) {
       if (value is Map<String, dynamic>) {
         value = value[part];
@@ -283,7 +283,7 @@ class QueryBuilder {
         return null;
       }
     }
-    
+
     return value;
   }
 
@@ -295,7 +295,7 @@ class QueryBuilder {
     // This is a simple implementation that scans a reasonable range of IDs
     // In a production system, you'd want to maintain a collection manifest
     final ids = <String>{};
-    
+
     // Try common ID patterns - check up to 1000 for tests
     for (int i = 1; i <= 1000; i++) {
       final key = '$collection:$i';
@@ -304,7 +304,7 @@ class QueryBuilder {
         ids.add(i.toString());
       }
     }
-    
+
     return ids;
   }
 
@@ -425,21 +425,22 @@ class QueryBuilder {
     final savedField = _textSearchField;
     _textSearchQuery = null;
     _textSearchField = null;
-    
+
     final allDocs = await find();
-    
+
     // Restore search parameters
     _textSearchQuery = savedQuery;
     _textSearchField = savedField;
-    
+
     final searchLower = savedQuery!.toLowerCase();
     final results = <Map<String, dynamic>>[];
-    
+
     for (final doc in allDocs) {
       if (_textSearchField != null) {
         // Search in specific field
         final value = _getFieldValue(doc, _textSearchField!);
-        if (value != null && value.toString().toLowerCase().contains(searchLower)) {
+        if (value != null &&
+            value.toString().toLowerCase().contains(searchLower)) {
           results.add(doc);
         }
       } else {
@@ -449,7 +450,7 @@ class QueryBuilder {
         }
       }
     }
-    
+
     return results;
   }
 
@@ -472,17 +473,17 @@ class QueryBuilder {
     final savedJoinConditions = Map<String, String>.from(_joinConditions);
     _joinCollections.clear();
     _joinConditions.clear();
-    
+
     final primaryDocs = await find();
-    
+
     // Restore join parameters
     _joinCollections.addAll(savedJoinCollections);
     _joinConditions.addAll(savedJoinConditions);
     final results = <Map<String, dynamic>>[];
-    
+
     for (final doc in primaryDocs) {
       final joinedDoc = Map<String, dynamic>.from(doc);
-      
+
       for (final joinCollection in _joinCollections) {
         final condition = _joinConditions[joinCollection];
         if (condition != null) {
@@ -494,23 +495,22 @@ class QueryBuilder {
               db: _db,
               indexManager: _indexManager,
             );
-            
+
             final parts = condition.split('.');
             final foreignField = parts.last;
-            final joinedDocs = await joinQuery
-              .whereEquals(foreignField, localValue)
-              .find();
-            
+            final joinedDocs =
+                await joinQuery.whereEquals(foreignField, localValue).find();
+
             if (joinedDocs.isNotEmpty) {
               joinedDoc['_joined_$joinCollection'] = joinedDocs;
             }
           }
         }
       }
-      
+
       results.add(joinedDoc);
     }
-    
+
     return results;
   }
 

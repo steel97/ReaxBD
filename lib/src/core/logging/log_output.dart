@@ -3,25 +3,33 @@ import 'log_level.dart';
 
 /// Base class for log outputs
 abstract class LogOutput {
-  Future<void> write(LogLevel level, String message, {Map<String, dynamic>? metadata});
+  Future<void> write(
+    LogLevel level,
+    String message, {
+    Map<String, dynamic>? metadata,
+  });
   Future<void> close() async {}
 }
 
 /// Console output for logging
 class ConsoleLogOutput extends LogOutput {
   final bool useColors;
-  
+
   ConsoleLogOutput({this.useColors = true});
 
   @override
-  Future<void> write(LogLevel level, String message, {Map<String, dynamic>? metadata}) async {
+  Future<void> write(
+    LogLevel level,
+    String message, {
+    Map<String, dynamic>? metadata,
+  }) async {
     final timestamp = DateTime.now().toIso8601String();
     final prefix = _getPrefix(level);
     final color = useColors ? _getColor(level) : '';
     final reset = useColors ? '\x1B[0m' : '';
-    
+
     final logMessage = '$color[$timestamp] $prefix: $message$reset';
-    
+
     if (metadata != null && metadata.isNotEmpty) {
       print('$logMessage $metadata');
     } else {
@@ -46,7 +54,7 @@ class ConsoleLogOutput extends LogOutput {
 
   String _getColor(LogLevel level) {
     if (!stdout.supportsAnsiEscapes) return '';
-    
+
     switch (level) {
       case LogLevel.error:
         return '\x1B[31m'; // Red
@@ -66,23 +74,27 @@ class ConsoleLogOutput extends LogOutput {
 class FileLogOutput extends LogOutput {
   final String filePath;
   late final IOSink _sink;
-  
+
   FileLogOutput(this.filePath) {
     final file = File(filePath);
     _sink = file.openWrite(mode: FileMode.append);
   }
 
   @override
-  Future<void> write(LogLevel level, String message, {Map<String, dynamic>? metadata}) async {
+  Future<void> write(
+    LogLevel level,
+    String message, {
+    Map<String, dynamic>? metadata,
+  }) async {
     final timestamp = DateTime.now().toIso8601String();
     final prefix = _getPrefix(level);
-    
+
     final logLine = StringBuffer('[$timestamp] $prefix: $message');
-    
+
     if (metadata != null && metadata.isNotEmpty) {
       logLine.write(' | metadata: $metadata');
     }
-    
+
     _sink.writeln(logLine.toString());
     await _sink.flush();
   }
@@ -114,13 +126,19 @@ class MemoryLogOutput extends LogOutput {
   final List<LogEntry> logs = [];
 
   @override
-  Future<void> write(LogLevel level, String message, {Map<String, dynamic>? metadata}) async {
-    logs.add(LogEntry(
-      level: level,
-      message: message,
-      metadata: metadata,
-      timestamp: DateTime.now(),
-    ));
+  Future<void> write(
+    LogLevel level,
+    String message, {
+    Map<String, dynamic>? metadata,
+  }) async {
+    logs.add(
+      LogEntry(
+        level: level,
+        message: message,
+        metadata: metadata,
+        timestamp: DateTime.now(),
+      ),
+    );
   }
 
   void clear() {

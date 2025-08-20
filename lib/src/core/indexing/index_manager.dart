@@ -150,7 +150,10 @@ class IndexManager {
 
             _indexes['$collection.$fieldName'] = index;
           } catch (e) {
-            logger.error('Failed to load index $collection.$fieldName', error: e);
+            logger.error(
+              'Failed to load index $collection.$fieldName',
+              error: e,
+            );
           }
         }
       }
@@ -175,7 +178,10 @@ class IndexManager {
 
       logger.debug('Index rebuild skipped');
     } catch (e) {
-      logger.error('Failed to rebuild index for $collection.$fieldName', error: e);
+      logger.error(
+        'Failed to rebuild index for $collection.$fieldName',
+        error: e,
+      );
     }
   }
 }
