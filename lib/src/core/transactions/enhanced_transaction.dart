@@ -79,7 +79,7 @@ class EnhancedTransaction {
 
     // Check parent transaction if nested
     if (_parent != null) {
-      return _parent!.get(key, getter);
+      return _parent.get(key, getter);
     }
 
     // Get from storage and track for repeatable read
@@ -209,7 +209,7 @@ class EnhancedTransaction {
         await _executeWithRetry(() => committer(_changes));
       } else {
         // Nested transaction - merge changes to parent
-        _parent!._changes.addAll(_changes);
+        _parent._changes.addAll(_changes);
       }
 
       _isCommitted = true;
