@@ -28,3 +28,6 @@ export 'src/core/transactions/enhanced_transaction.dart';
 
 // Main ReaxDB class
 export 'src/reaxdb.dart';
+
+// Simple API for easy adoption
+export 'src/simple_api.dart';
