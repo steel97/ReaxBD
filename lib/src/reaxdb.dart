@@ -13,6 +13,7 @@ import 'core/encryption/encryption_engine.dart';
 import 'core/logging/logger.dart';
 import 'core/streams/reactive_stream.dart';
 import 'domain/entities/database_entity.dart';
+import 'simple_api.dart';
 
 /// High-performance hybrid database with multi-level caching and encryption support.
 ///
@@ -47,6 +48,33 @@ class ReaxDB {
        _transactionManager = transactionManager,
        _indexManager = indexManager,
        _encryptionEngine = encryptionEngine;
+
+  /// Create a simple database instance with optimized defaults.
+  /// 
+  /// This is the recommended way to get started with ReaxDB.
+  /// 
+  /// Example:
+  /// ```dart
+  /// final db = await ReaxDB.simple('myapp');
+  /// await db.put('key', 'value');
+  /// ```
+  static Future<SimpleReaxDB> simple(
+    String name, {
+    bool encrypted = false,
+    String? path,
+  }) async {
+    return SimpleReaxDB.open(name, encrypted: encrypted, path: path);
+  }
+  
+  /// Quick start method - even simpler than simple()!
+  /// 
+  /// Example:
+  /// ```dart
+  /// final db = await ReaxDB.quickStart('myapp');
+  /// ```
+  static Future<SimpleReaxDB> quickStart(String name) async {
+    return SimpleReaxDB.open(name);
+  }
 
   /// Opens a database instance with the specified configuration.
   ///
@@ -647,14 +675,18 @@ class ReaxDB {
     int? limit,
   }) async {
     _ensureOpen();
-
+    
+    // TODO: Implement proper scan functionality
+    // For now, return empty map
     return <String, T?>{};
   }
 
   // Prefix scan operations
   Future<Map<String, T?>> scanPrefix<T>(String prefix, {int? limit}) async {
     _ensureOpen();
-
+    
+    // TODO: Implement proper scan functionality
+    // For now, return empty map
     return <String, T?>{};
   }
 

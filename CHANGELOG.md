@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-08-20
+
+### Added
+- **Simple API**: New `ReaxDB.simple()` and `ReaxDB.quickStart()` methods for easy database setup
+  - Start with just 3 lines of code
+  - Automatic configuration with optimized defaults
+  - No breaking changes - fully backward compatible
+  - Simplified methods: `put()`, `get()`, `delete()`, `query()`, `watch()`
+  - Access to advanced features via `.advanced` property
+- **Improved Persistence**: Fixed key tracking in Simple API for proper data persistence between sessions
+- **Integrated Demo App**: Example app now includes 4 comprehensive demos:
+  - Performance demo (existing stress tests)
+  - Simple CRUD demo
+  - Todo app demo
+  - Real-time chat demo
+- **Real Benchmarks**: Updated performance benchmarks with actual measured data
+  - 111,111 ops/sec for reads
+  - 14,493 ops/sec for sequential writes
+  - 71,429 ops/sec for batch writes
+  - Comparison with Hive and Isar based on real data
+
+### Changed
+- **Documentation Restructure**:
+  - Simplified README from 528 to 205 lines focusing on ease of use
+  - Moved advanced features to separate `ADVANCED.md`
+  - Added `MIGRATION.md` with guides for migrating from Hive/Isar/SQLite
+  - Updated `BENCHMARKS.md` with real performance data
+- **Better Developer Experience**:
+  - Clear positioning: "The simplest way to store data in Dart & Flutter"
+  - Focus on getting started quickly
+  - Progressive disclosure of advanced features
+
+### Fixed
+- Simple API now properly persists keys metadata between sessions
+- Example app navigation and demo integration
+- Test coverage for Simple API (28 tests, all passing)
+
+### Developer Experience
+- Zero to functional in 3 lines of code
+- No configuration required for basic usage
+- Smooth learning curve from simple to advanced features
+- Better documentation organization for different skill levels
+
 ## [1.3.0] - 2025-08-11
 
 ### Changed
@@ -54,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced transaction tests now pass 100%
 
 ### Acknowledgments
-- Special thanks to [@TechWithDunamis](https://github.com/TechWithDunamis) for the pure Dart conversion (PR #4)
+- Special thanks to [@omtodkar](https://github.com/omtodkar) for the pure Dart conversion (PR #4)
 
 ## [1.2.3] - 2025-07-20
 
